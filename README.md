@@ -1,6 +1,6 @@
 # WebInterface-OnBoot
 
-This simple program will convice the ReMarkable Tablet to start the web interface after booting without the usb cord being plugged in. It can then be reached internally at 10.11.99.1:80 without the usb cord.
+This simple program will convince the ReMarkable Tablet to start the web interface after booting without the usb cord being plugged in. It can then be reached internally at 10.11.99.1:80 without the usb cord.
 
 # Validated Xochitl Versions
 
@@ -24,7 +24,7 @@ Then copy the binary 'target/armv7-unknown-linux-gnueabihf/release/webinterface-
 
 ## How Does it Work?
 
-First trick xochitl into thinkiking the web interface should be enabled by:
+First trick xochitl into thinking the web interface should be enabled by:
 - setting WebInterfaceEnabled=true in /etc/remarkable.conf
 - giving the usb0 interface the ip 10.11.99.1
 

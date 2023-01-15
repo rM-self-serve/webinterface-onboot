@@ -19,15 +19,14 @@ fn edit_conf() {
 }
 
 fn spoof_ip() {
-    if usb0up() {
-        return;
-    }
-    let out = Command::new("/sbin/ip")
-        .args(["addr", "add", "10.11.99.1/32", "dev", "usb0"])
-        .output();
-    match out {
-        Ok(_) => {}
-        Err(e) => println!("Error Setting usb0 IP: {e}")
+    if !usb0up() {
+        let out = Command::new("/sbin/ip")
+            .args(["addr", "add", "10.11.99.1/32", "dev", "usb0"])
+            .output();
+        match out {
+            Ok(_) => {}
+            Err(e) => println!("Error Setting usb0 IP: {e}")
+        }
     }
 }
 
@@ -37,15 +36,15 @@ fn usb0up() -> bool {
         Ok(netint) => netint,
         Err(e) => {
             println!("Error Checking Interfaces: {e}");
-            return false
+            return false;
         }
     };
     for (name, ip) in network_interfaces {
         if name == "usb0" && ip.is_ipv4() {
-            return true
+            return true;
         }
     }
-    return false
+    return false;
 }
 
 #[allow(while_true)]
