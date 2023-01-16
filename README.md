@@ -2,7 +2,11 @@
 
 This simple program will convince the ReMarkable Tablet to start the web interface after booting without the usb cord being plugged in. It can then be reached internally at 10.11.99.1:80 without the usb cord.
 
+This could easily be emulated with a bash script.
+
 Please test on other versions and feel free to discuss! Would love to try to support every version.
+
+You will type the following commands after ssh'ing into your ReMarkable Tablet.
 
 ## Validated Xochitl Versions
 
