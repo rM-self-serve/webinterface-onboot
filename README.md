@@ -2,7 +2,9 @@
 
 This simple program will convince the ReMarkable Tablet to start the web interface after booting without the usb cord being plugged in. It can then be reached internally at 10.11.99.1:80 without the usb cord.
 
-# Validated Xochitl Versions
+Please test on other versions and feel free to discuss! Would love to try to support every version.
+
+## Validated Xochitl Versions
 
 - 2.10.0.324
 
@@ -14,9 +16,13 @@ This simple program will convince the ReMarkable Tablet to start the web interfa
 
 `wget -O - https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/master/remove-webint-ob.sh | sh`
 
+## Use
+
+webinterface-onboot will already be installed and running on installation! 
+
 ## Manual install
 
-You will need docker/podman, cargo, and the cargo crate named cross. There are surely other ways to cross compile for armv7-unknown-linux-gnueabihf.
+You will need docker/podman, cargo, and the cargo crate named cross. There are surely other ways to cross compile for armv7-unknown-linux-gnueabihf as well.
 
 `cross build --target armv7-unknown-linux-gnueabihf --release`
 
