@@ -22,7 +22,7 @@ You will type the following commands after ssh'ing into your ReMarkable Tablet.
 
 ## Use
 
-webinterface-onboot will already be installed and running on installation! 
+webinterface-onboot will already be running on installation! 
 
 ## Manual install
 
