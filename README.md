@@ -14,15 +14,19 @@ You will type the following commands after ssh'ing into your ReMarkable Tablet.
 
 ## Install
 
-`wget -O - https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/master/install-webint-ob.sh | sh`
+`wget https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/master/install-webint-ob.sh && bash install-webint-ob.sh`
 
 ## Remove
 
-`wget -O - https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/master/remove-webint-ob.sh | sh`
+`wget https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/master/remove-webint-ob.sh && bash remove-webint-ob.sh`
 
 ## Use
 
-webinterface-onboot will already be running on installation! 
+To auto start the application after restarting the device, run:
+
+- `systemctl enable --now webinterface-onboot`
+
+Next time you restart the web interface will be running and internally accessible on 10.11.99.1:80
 
 ## Manual install
 
