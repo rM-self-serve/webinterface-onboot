@@ -1,6 +1,12 @@
-removefile='./remove-webint-ob.sh'
+#!/usr/bin/env bash
 
-echo "Remove webinterface-onboot"
+pkgname='webinterface-onboot'
+removefile='./remove-webint-ob.sh'
+localbin='/home/root/.local/bin'
+binfile="${localbin}/${pkgname}"
+servicefile="/lib/systemd/system/${pkgname}.service"
+
+printf "\nRemove webinterface-onboot\n"
 echo "This will not remove the /home/root/.local/bin directory nor the path in .bashrc"
 
 read -r -p "Would you like to continue with removal? [y/N] " response
@@ -15,11 +21,18 @@ case "$response" in
     ;;
 esac
 
-rm /home/root/.local/bin/webinterface-onboot
+[[ -f $binfile ]] && rm $binfile
 
-systemctl disable webinterface-onboot --now
+if systemctl --quiet is-active "$pkgname" 2>/dev/null; then
+	echo "Stopping $pkgname"
+	systemctl stop "$pkgname"
+fi
+if systemctl --quiet is-enabled "$pkgname" 2>/dev/null; then
+	echo "Disabling $pkgname"
+	systemctl disable "$pkgname"
+fi
 
-rm /lib/systemd/system/webinterface-onboot.service
+[[ -f $servicefile ]] && rm $servicefile
 
 [[ -f $removefile ]] && rm $removefile
 
