@@ -4,13 +4,13 @@ This simple program will convince the ReMarkable Tablet to start the web interfa
 
 This could easily be emulated with a bash script.
 
-Please test on other versions and feel free to discuss! Would love to try to support every version.
+Type the following commands after ssh'ing into your ReMarkable Tablet.
 
-You will type the following commands after ssh'ing into your ReMarkable Tablet.
+## Tested Xochitl Version Compatibility
 
-## Validated Xochitl Versions
-
-- 2.10.0.324
+- ✅ 2.10 - and presumably earlier 
+- 🚫 2.15
+- 🚫 3.0
 
 ## Install
 
@@ -44,4 +44,4 @@ First trick xochitl into thinking the web interface should be enabled by:
 
 If done fast enough, the conditions are right for xochitl to start the webserver on boot.
 
-The actual web-interface website will continue running on 10.11.99.1:80 even if the usb0 interface does not have the 10.11.99.1 ip address. Disconnecting the usb cord will automatically remove the ip 10.11.99.1 from the usb0 interface, so this program runs in an infinite loop and will ensure the ip is set for usb0.
+The actual web-interface website will continue running on 10.11.99.1:80 even if the usb0 interface does not have the 10.11.99.1 ip address. Disconnecting the usb cord will automatically remove the 10.11.99.1 ip from the usb0 interface, so this program runs in an infinite loop and will ensure the ip stays set.
