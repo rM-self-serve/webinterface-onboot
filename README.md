@@ -6,11 +6,10 @@ This could easily be emulated with a bash script.
 
 Type the following commands after ssh'ing into your ReMarkable Tablet.
 
-## Tested Xochitl Version Compatibility
+## Xochitl Version Compatibility
 
-- ✅ 2.10 - and presumably earlier 
-- 🚫 2.15
-- 🚫 3.0
+- ✅ 1.9 - 2.14
+- 🚫 >= 2.15
 
 ## Install
 
@@ -38,10 +37,8 @@ Then copy the binary 'target/armv7-unknown-linux-gnueabihf/release/webinterface-
 
 ## How Does it Work?
 
-First trick xochitl into thinking the web interface should be enabled by:
+Before xochitl starts, trick it into thinking the web interface should be enabled by:
 - setting WebInterfaceEnabled=true in /etc/remarkable.conf
-- giving the usb0 interface the ip 10.11.99.1
-
-If done fast enough, the conditions are right for xochitl to start the webserver on boot.
+- giving the usb0 interface the ip 10.11.99.1/32
 
 The actual web-interface website will continue running on 10.11.99.1:80 even if the usb0 interface does not have the 10.11.99.1 ip address. Disconnecting the usb cord will automatically remove the 10.11.99.1 ip from the usb0 interface, so this program runs in an infinite loop and will ensure the ip stays set.
