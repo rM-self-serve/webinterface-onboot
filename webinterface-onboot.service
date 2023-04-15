@@ -4,7 +4,7 @@ Description=Enable the web interface on boot
 [Service]
 Type=simple
 Restart=always
-ExecStart=/home/root/.local/bin/webinterface-onboot
+ExecStart=/home/root/.local/bin/webinterface-onboot --run
 
 [Install]
 WantedBy=multi-user.target
