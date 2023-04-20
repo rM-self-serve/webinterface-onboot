@@ -30,7 +30,7 @@ https://github.com/rM-self-serve/webinterface-persist-ip
 
 `$ wget https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/master/remove-webint-ob.sh && bash remove-webint-ob.sh`
 
-## Use
+## Usage
 
 ### To use webinterface-onboot, run:
 
