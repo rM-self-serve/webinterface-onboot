@@ -1,9 +1,12 @@
 [Unit]
 Description=Enable the web interface on boot
+StartLimitIntervalSec=600
+StartLimitBurst=4
+After=home.mount
 
 [Service]
-Type=simple
-Restart=always
+Environment=HOME=/home/root
+Type=oneshot
 ExecStart=/home/root/.local/bin/webinterface-onboot --run
 
 [Install]

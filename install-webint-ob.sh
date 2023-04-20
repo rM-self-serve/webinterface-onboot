@@ -1,26 +1,46 @@
 #!/usr/bin/env bash
+# Copyright (c) 2023 rM-self-serve
+# SPDX-License-Identifier: MIT
 
-# webinterface_onboot_sha256sum='5072b216774f2ca24ac0933d4633a6e2d64e5b7426bcbcac48f74cc56f9c3ab0'
-# service_file_sha256sum='224fe11abdc0bd332c9946ffda3fe38687038dbf4bd65982b88815ab90f5a8cf'
+webinterface_onboot_sha256sum='47d712800b01bea60281d8eadf6ca0f47e1c55309c68a5e0b2c2dde33728492f'
+service_file_sha256sum='57d7f1f6ebe7bfccf435c11b12e4bec1f58f72f1a7af963e5e58e626f241ccf6'
+
+release='v1.1.0'
 
 installfile='./install-webint-ob.sh'
+pkgname='webinterface-onboot'
 localbin='/home/root/.local/bin'
-binfile="${localbin}/webinterface-onboot"
-servicefile='/lib/systemd/system/webinterface-onboot.service'
+binfile="${localbin}/${pkgname}"
+servicefile="/lib/systemd/system/${pkgname}.service"
 
-printf "\nwebinterface-onboot\n"
-printf "\nEnable the web interface on boot\n"
-printf "This program will be installed in %s\n" "${localbin}"
-printf "%s will be added to the path in ~/.bashrc if necessary\n" "${localbin}"
+remove_installfile() {
+	read -r -p "Would you like to remove installation script? [y/N] " response
+	case "$response" in
+	[yY][eE][sS] | [yY])
+		printf "Exiting installer and removing script\n"
+		[[ -f $installfile ]] && rm $installfile
+		;;
+	*)
+		printf "Exiting installer and leaving script\n"
+		;;
+	esac
+}
+
+echo ''
+echo "$pkgname"
+echo ''
+echo "Enable the web interface on boot"
+echo ''
+echo "This program will be installed in ${localbin}"
+echo "${localbin} will be added to the path in ~/.bashrc if necessary"
 
 read -r -p "Would you like to continue with installation? [y/N] " response
 case "$response" in
 [yY][eE][sS] | [yY])
-	printf "Installing webinterface-onboot\n"
+	echo "Installing ${pkgname}"
 	;;
 *)
-	printf "Exiting installer and removing script\n"
-	[[ -f $installfile ]] && rm $installfile
+	remove_installfile
 	exit
 	;;
 esac
@@ -32,37 +52,76 @@ case :$PATH: in
 *) echo "PATH=\"${localbin}:\$PATH\"" >>/home/root/.bashrc ;;
 esac
 
-function sha_fail() {
-	echo "sha256sum did not pass, error downloading webinterface-onboot"
+pkg_sha_check() {
+	if sha256sum -c <(echo "$webinterface_onboot_sha256sum  $binfile") >/dev/null 2>&1; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+srvc_sha_check() {
+	if sha256sum -c <(echo "$service_file_sha256sum  $servicefile") >/dev/null 2>&1; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+sha_fail() {
+	echo "sha256sum did not pass, error downloading ${pkgname}"
 	echo "Exiting installer and removing installed files"
 	[[ -f $binfile ]] && rm $binfile
-	[[ -f $installfile ]] && rm $installfile
 	[[ -f $servicefile ]] && rm $servicefile
+	remove_installfile
 	exit
 }
 
-[[ -f $binfile ]] && rm $binfile
-wget https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/bash-hack/webinterface-onboot \
-	-P $localbin
+need_bin=true
+if [ -f $binfile ]; then
+	if pkg_sha_check; then
+		need_bin=false
+		echo "Already have the right version of ${pkgname}"
+	else
+		rm $binfile
+	fi
+fi
+if [ "$need_bin" = true ]; then
+	wget "https://github.com/rM-self-serve/${pkgname}/releases/download/${release}/${pkgname}" \
+		-P "$binfile"
 
-# if ! sha256sum -c <(echo "$webinterface_onboot_sha256sum  $binfile") >/dev/null 2>&1; then
-# 	sha_fail
-# fi
+	if ! pkg_sha_check; then
+		sha_fail
+	fi
 
-chmod +x $localbin/webinterface-onboot
+	chmod +x "${localbin}/${pkgname}"
+fi
 
-[[ -f $servicefile ]] && rm $servicefile
-wget https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/bash-hack/webinterface-onboot.service \
-	-P /lib/systemd/system
+need_service=true
+if [ -f $servicefile ]; then
+	if srvc_sha_check; then
+		need_service=false
+		echo "Already have the right version of ${pkgname}"
+	else
+		rm $servicefile
+	fi
+fi
+if [ "$need_service" = true ]; then
+	wget "https://github.com/rM-self-serve/${pkgname}/releases/download/${release}/${pkgname}" \
+		-P "$servicefile"
 
-# if ! sha256sum -c <(echo "$service_file_sha256sum  $servicefile") >/dev/null 2>&1; then
-# 	sha_fail
-# fi
+	if ! srvc_sha_check; then
+		sha_fail
+	fi
+fi
 
 systemctl daemon-reload
 
-printf '\nFinished installing webinterface-onboot, removing install script\n\n'
-printf 'To auto start the application after restarting the device, run:\n'
-printf 'systemctl enable --now webinterface-onboot\n\n'
+echo ""
+echo "Finished installing ${pkgname}, removing install script"
+echo ""
+echo "To use ${pkgname}, run:"
+echo ""
+echo "systemctl enable --now ${pkgname}"
 
-[[ -f $installfile ]] && rm $installfile
+remove_installfile

@@ -1,76 +1,118 @@
 # WebInterface-OnBoot
 
-> bash-hack branch
-
-This simple program will convince the ReMarkable Tablet to start the web interface after booting without the usb cord being plugged in. It can then be reached internally at 10.11.99.1:80 without the usb cord.
+This simple program will convince the ReMarkable Tablet to start the web interface after booting without the usb cable being plugged in. Eliminates the need to switch on the web interface setting after connecting the usb cable. Also useful for clients that leverage the web interface for file operations, namely access over [wifi](https://github.com/rM-self-serve/webinterface-wifi).
 
 
 ## Xochitl Version Compatibility
 
-Tested from v1.9 to v3.3.2-beta on rM1
+Tested from v1.9 to v3.3.2 on rM1
 
 - ✅ <= v2.14
 - ✅ >= v2.15 - Requires simple binary hack, see below
 
-### Type the following commands after ssh'ing into the ReMarkable Tablet
 
+## Maintain Internal Web Interface Accessibility
+
+> Only needed for software clients that leverage the web interface
+
+The web interface server will continue running on 10.11.99.1:80 even if the usb cable is disconnected, meaning it can still be used for file uploads/downloads. The only way it will stop running is if switched off in the settings. Disconnecting the usb cable will remove the ip address from the usb0 network interface, making the web interface inaccessible. Use the following program to ensure the ip stays set and the web interface is internally accessible at 10.11.99.1:80.
+
+https://github.com/rM-self-serve/webinterface-persist-ip
+
+
+### Type the following commands after ssh'ing into the ReMarkable Tablet
 
 ## Install
 
-`wget https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/bash-hack/install-webint-ob.sh && bash install-webint-ob.sh`
+`$ wget https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/master/install-webint-ob.sh && bash install-webint-ob.sh`
 
 ## Remove
 
-`wget https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/bash-hack/remove-webint-ob.sh && bash remove-webint-ob.sh`
+`$ wget https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/master/remove-webint-ob.sh && bash remove-webint-ob.sh`
 
 ## Use
 
-To use the application, run:
+### To use webinterface-onboot, run:
 
-- `systemctl enable --now webinterface-onboot`
+`$ systemctl enable --now webinterface-onboot`
 
-Each time webinterface-onboot is enabled, the web-interface setting  will need to be enabled within the settings menu via a cord sometime between when the device was turned on and before it is turned off. After that, the web interface will be running and internally accessible on 10.11.99.1:80 every time the device is started.
+> the web interface will start the next time the device does, and every time after
+
+### To stop using webinterface-onboot, run:
+
+`$ systemctl disable --now webinterface-onboot`
+
+## Binary Hack for Xochitl >= v2.15
+
+> :warning: Not tested on the Remarkable Tablet 2, though the rM2 xochitl binaries were successfully converted/reverted; decompilation seems to suggest testing is safe and the hack will work fine
+
+> This will force the web interface to use the usb0 network interface even if the usb1 network interface is connected to your device
+
+The provided functionality to apply/revert the hack will first create a backup of xochitl, then a temporary file in which the strings of the binary are changed. If the temporary file is successfully converted, it will replace the xochitl binary in /usr/bin/.
+
+
+### Apply Hack
+
+This will only need to be done once, unless you upgrade:
+
+`$ webinterface-onboot --apply-hack` 
+
+
+### Revert Hack
+
+Restore from backup or reverse hack:
+
+`$ webinterface-onboot --revert-hack` 
 
 
 ## How Does it Work?
 
-If the field 'WebInterfaceEnabled' is set to 'true' in /etc/remarkable.conf, xochitl will see if the 'usb0' network interface has an ip address and run the web-interface website on that ip address if so.
+### Definitions
+
+web interface:
+- the server/website that runs on 10.11.99.1:80 and allows file uploads/downloads
+
+usb0/usb1 network interface:
+- the device within the tablet that handles the ethernet connection
+
+### Webinterface-Onboot
+
+When xochitl starts, it determines whether or not it should run the web interface. It will first check that the field 'WebInterfaceEnabled' is set to 'true' in /home/root/.config/remarkable/xochitl.conf. If so, it then checks if the usb0 network interface has an ip address. If so, it will run the web interface on that ip address.
 
 Thus, before xochitl starts:
-- set WebInterfaceEnabled=true in /etc/remarkable.conf
-- set the usb0 interface ip address to 10.11.99.1/32
+- set WebInterfaceEnabled=true in /home/root/.config/remarkable/xochitl.conf
+- give the usb0 network interface the ip address 10.11.99.1/32
 
-The actual web-interface website will continue running on 10.11.99.1:80 even if the usb0 interface does not have the 10.11.99.1 ip address. Disconnecting the usb cord will automatically remove the 10.11.99.1 ip from the usb0 interface, so this program runs in an infinite loop and will ensure the ip stays set.
+> Versions >= v2.15 also require the usb0 network interface to be connected to a computer, so we need the...
 
-
-## Binary Hack for >= 2.15
-
-> :warning: Not tested on the Remarkable Tablet 2
-
-The provided functions to apply/revert the hack will first create a backup of xochitl, then a temporary file in which the strings of the binary are changed. If the temporary file is successfully converted, it will replace the xochitl binary in /usr/bin/.
-
-### Apply Hack
-
-This will only need to be done once unless you upgrade.
-
-- `webinterface-onboot --apply-hack` 
-
-### Revert Hack
-
-Try to restore from backup or reverse hack.
-
-- `webinterface-onboot --revert-hack` 
-
-### Info
+### Binary Hack
 
 All the hack does to the xochitl binary:
 
- - change the string 'usb0' to 'usbF'
- - change the string 'usb1' to 'usb0'
+- change the string 'usb0' to 'usbF'
+- change the string 'usb1' to 'usb0'
 
-The strings 'usb0' and 'usb1' appear only to be used when deciding on which network interface the web-interface website will be started on. 
+The strings 'usb0' and 'usb1' only occur once in the binary and appear only to be used within the function that decides on which network interface the web interface website should be started on. 
 
-Without the hack, xochitl will check to see that the 'usb0' interface has an ip address and is connected to a device in order to start the web-interface. If not it will fallback to the 'usb1' interface, but then only check for an ip address in order to start the web-interface.
+Since we are changing hard-coded strings in the binary, the code that uses these strings will roughly be changed from:
 
-If the interface name string, i.e. 'usb0', is changed in the binary, xochitl will look for a network interface with that new name instead. Since webinterface-onboot ensures that the 'usb0' interface always has an ip address, we can change the 'usb1' string to 'usb0' so that the 'usb0' interface is the fallback and only needs an ip for the web-interface to start on it. I am not quite sure of the function of the 'usb1' interface, so I changed the inital occurance of 'usb0' to 'usbF', so that xochitl can not find the network interface and will always fallback to 'usb0'. It may be wiser to leave the intial occurance of 'usb0' as 'usb0'.
+```
+primary_interface = QNetworkInterface::interfaceFromName('usb0')
+fallback_interface = QNetworkInterface::interfaceFromName('usb1')
+```
+
+To:
+
+```
+primary_interface = QNetworkInterface::interfaceFromName('usbF')
+fallback_interface = QNetworkInterface::interfaceFromName('usb0')
+```
+
+Without the hack, xochitl will check to see that the primary network interface, usb0, **has an ip address and is connected to a computer** in order to start the web interface on that ip address. If those conditions are not satisfied, xochitl will fallback to checking the usb1 network interface. But for the fallback interface, xochitl **only checks for an ip address** in order to start the web interface, **not if it is connected to a computer**.
+
+We can give the usb0 network interface an ip address at any time, but we can not fake the connection to the computer as it is deduced by the network interface's operational state. This means that without the cable plugged in, the conditions necessary to start the web interface on the primary network interface, usb0, can never be satisfied. Though, this also means that if the usb0 network interface was to be evaluated as the fallback interface, we could give it an ip address to satisfy the conditions necessary to start the web interface. This is what we'll do!
+
+In order to evaluate the usb0 network interface as the fallback network interface, all we need to do is change the string 'usb1' to 'usb0' within the xochitl binary.
+
+I am not quite sure what the function of the usb1 network interface is, so the hack changes the initial occurrence of 'usb0' to 'usbF' so that xochitl can not find the primary network interface and will always fallback to usb0, and so that there will be only one occurrence of the string 'usb0' in the binary. It may be wiser to leave the initial occurrence of the string 'usb0' as 'usb0', or change it to 'usb1'.
 

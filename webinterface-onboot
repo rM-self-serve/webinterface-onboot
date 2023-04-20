@@ -1,135 +1,239 @@
 #!/usr/bin/env bash
+# Copyright (c) 2023 rM-self-serve
+# SPDX-License-Identifier: MIT
+
+webinterface_onboot_version='v1.1.0'
 
 main() {
 	case "$@" in
-	"--run")
-		run
-		;;
-	"--apply-hack")
-		apply_hack
-		;;
-	"--revert-hack")
-		revert_hack
-		;;
 	'-h' | '--help' | '')
 		cli_info
 		;;
+	'-s' | '--status')
+		status
+		;;
+	'--run')
+		run
+		;;
+	'--apply-hack')
+		apply_hack
+		;;
+	'--revert-hack')
+		revert_hack
+		;;
 	*)
 		echo 'input not recognized'
-		usage
+		cli_info
 		;;
 	esac
 }
 
 cli_info() {
-	echo 'webinterface-onboot'
+	echo -e "${GREEN}webinterface-onboot ${webinterface_onboot_version}${NC}"
 	echo ''
 	echo 'This simple program will convince the ReMarkable Tablet to start'
 	echo 'the web interface after booting without the usb cord being plugged in.'
-	echo 'It can then be reached internally at 10.11.99.1:80 without the usb cord.'
+	echo 'Xochitl versions >= v2.15 require simple binary hack.'
+	echo 'Source+Docs: https://github.com/rM-self-serve/webinterface-onboot'
 	echo ''
-	echo 'ENABLE/USE:'
-	echo '  systemctl enable --now webinterface-onboot'
-	echo 'DISABLE:'
-	echo '  systemctl disable --now webinterface-onboot'
-	usage
-}
-
-usage() {
+	echo -e "${CYAN}ENABLE/USE:${NC}"
+	echo '$ systemctl enable --now webinterface-onboot'
 	echo ''
-	echo 'USAGE:'
+	echo -e "${CYAN}DISABLE:${NC}"
+	echo '$ systemctl disable --now webinterface-onboot'
+	echo ''
+	echo -e "${CYAN}USAGE:${NC}"
 	echo '  webinterface-onboot [OPTIONS]'
 	echo ''
-	echo 'OPTIONS:'
+	echo -e "${CYAN}OPTIONS:${NC}"
 	echo '  -h, --help        Show help'
-	echo '  --apply-hack      Apply webinterface-onboot hack for versions >= 2.15'
+	echo '  -s, --status      Status of webinterface-onboot'
+	echo '  --apply-hack      Apply webinterface-onboot hack for versions >= v2.15'
 	echo '  --revert-hack     Revert webinterface-onboot hack'
+	echo '  --run             Run webinterface-onboot in current shell'
 }
 
 run() {
-	sed -i 's/WebInterfaceEnabled=false/WebInterfaceEnabled=true/g' /etc/remarkable.conf
+	user_conf='/home/root/.config/remarkable/xochitl.conf'
+	echo -e "Setting WebInterfaceEnabled=true in ${user_conf}"
+	sed -i 's/WebInterfaceEnabled=false/WebInterfaceEnabled=true/g' "$user_conf"
+	echo -e "${GREEN}Set WebInterfaceEnabled=true in ${user_conf}${NC}"
 
-	USB0IP='10.11.99.1'
-	IPRANGE="${USB0IP}/32"
-	while true; do
-		ip addr add $IPRANGE dev usb0 2>/dev/null
-		sleep 5
-	done
+	usb0iprange='10.11.99.1/32'
+	echo "Adding ${usb0iprange} ip address to usb0"
+	ip addr change $usb0iprange dev usb0
+	echo -e "${GREEN}Added ${usb0iprange} ip address to usb0${NC}"
 }
 
-hack_vars() {
-	CONF='/usr/share/remarkable/update.conf'
-	if ! [ -f $CONF ]; then
-		echo "Error: can't find ${CONF}"
-		exit
+get_version() {
+	conf_file='/usr/share/remarkable/update.conf'
+	if ! [ -f $conf_file ]; then
+		echo "Error: Can't find ${conf_file}"
+		exit 1
 	fi
-	VERSION=$(grep 'REMARKABLE_RELEASE_VERSION' $CONF | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+')
-	IFS=. read -r versA versB _ _ <<<"$VERSION"
-	if ((versA > 2)); then
-		echo "Compatable version v${VERSION}"
-	elif ((versA == 2)) && ((versB >= 15)); then
-		echo "Compatable version v${VERSION}"
+	xo_version=$(grep 'REMARKABLE_RELEASE_VERSION' $conf_file | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+')
+	IFS=. read -r versA versB _ _ <<<"$xo_version"
+
+	if [ "$versA" -eq 2 ] && [ "$versB" -ge 15 ] || [ "$versA" -ge 3 ]; then
+		is_hack_version=true
 	else
-		echo "Incompatable version v${VERSION}, hack only needed for >= v2.15"
-		exit
+		is_hack_version=false
 	fi
-	XO='xochitl'
-	XO_FILE="/usr/bin/${XO}"
-	if ! [ -f $CONF ]; then
-		echo "Error: can't find ${CONF}"
-		exit
-	fi
-	STORAGE_REL='share/webinterface-onboot'
-	STORAGE_OPT="/opt/${STORAGE_REL}"
-	STORAGE_HOME="/home/root/.local/${STORAGE_REL}"
-	if [ -d '/opt' ] && mount | grep -q '/dev/mmcblk1p7 on /opt'; then
-		STORAGE_DIR=$STORAGE_OPT
-	else
-		STORAGE_DIR=$STORAGE_HOME
-	fi
-	BAK_XO="${STORAGE_DIR}/${XO}-${VERSION}-bak"
-	TMP_XO="${STORAGE_DIR}/.${XO}.tmp"
 }
 
-rm_temp() {
-	echo "Removing ${TMP_XO}"
-	[[ -f "$TMP_XO" ]] && rm $TMP_XO
+help_vars() {
+	get_version
+	xo='xochitl'
+	xo_file="/usr/bin/${xo}"
+	share_rel='share/webinterface-onboot'
+	storage_rel="${share_rel}/xochitl_backups"
+	if mount | grep -q '/dev/mmcblk1p7 on /opt'; then
+		app_root='/opt'
+	else
+		app_root='/home/root/.local'
+	fi
+	storage_dir="${app_root}/${storage_rel}"
+	bak_xo="${storage_dir}/${xo}-${xo_version}-bak"
+	tmp_xo="${storage_dir}/.${xo}.tmp"
+}
+
+status() {
+	help_vars
+
+	echo -e "${CYAN}[${NC}XOCHITL WEB INTERFACE${CYAN}]"
+	if netstat -tuln | grep -qE "10.11.99.1:80.*LISTEN"; then
+		echo -e "${GREEN}Running${NC}"
+	else
+		echo -e "${RED}Not running${NC}"
+	fi
+
+	if ip a | grep -qE "10.11.99.1/[32|29]"; then
+		echo -e "${GREEN}usb0 network interface has 10.11.99.1 ip address${NC}"
+	else
+		echo -e "${YELLOW}usb0 network interface does not have 10.11.99.1 ip address${NC}"
+	fi
+
+	# # ------------------------ SERVICE ------------------------
+	# main_service='webinterface-onboot.service'
+	# echo ''
+	# echo -e "${CYAN}[${NC}SERVICE${CYAN}]"
+	# echo -e "${PURPLE}webinterface-onboot:${NC}"
+	# if systemctl --quiet is-enabled "$main_service" 2>/dev/null; then
+	# 	echo -n " - enabled"
+	# else
+	# 	echo -n " - disabled"
+	# fi
+	# if ! systemctl --quiet is-failed "$main_service" 2>/dev/null; then
+	# 	echo ", no errors"
+	# else
+	# 	echo ", error when running"
+	# fi
+	# # ------------------------ SERVICE ------------------------
+
+	if [ "$is_hack_version" = false ]; then
+		exit
+	fi
+
+	echo ''
+	echo -e "${CYAN}[${NC}HACK${CYAN}]"
+	if hack_applied "$xo_file"; then
+		echo -e "${GREEN}Hack is currently applied${NC}"
+	else
+		echo -e "${RED}Hack is not currently applied${NC}"
+		echo " - Run 'webinterface-onboot --apply-hack' for correct function"
+	fi
+
+	echo ''
+	echo -e "${CYAN}[${NC}BACKUPS${CYAN}]"
+	backup_found=false
+
+	opt_baks="/opt/${storage_rel}"
+	if [ -d "$opt_baks" ]; then
+		bak_files=$(find "$opt_baks" -name '*-bak*')
+		if [ -n "$bak_files" ]; then
+			backup_found=true
+			echo -e "${PURPLE}${opt_baks}${NC}"
+			bak_files_xargs=$(echo "$bak_files" | xargs)
+			IFS=' ' read -r -a arrayaa <<<"$bak_files_xargs"
+			for element in "${arrayaa[@]}"; do
+				IFS='/' read -r -a arrayab <<<"$element"
+				echo " - ${arrayab[-1]}"
+			done
+		fi
+	fi
+
+	local_baks="/home/root/.local/${storage_rel}"
+	if [ -d "$local_baks" ]; then
+		bak_files=$(find "$local_baks" -name '*-bak*')
+		if [ -n "$bak_files" ]; then
+			backup_found=true
+			echo -e "${PURPLE}${local_baks}${NC}"
+			bak_files_xargs=$(echo "$bak_files" | xargs)
+			IFS=' ' read -r -a arrayab <<<"$bak_files_xargs"
+			for element in "${arrayab[@]}"; do
+				IFS='/' read -r -a arraybb <<<"$element"
+				echo " - ${arraybb[-1]}"
+			done
+		fi
+	fi
+
+	if [ "$backup_found" = false ]; then
+		echo -e "${RED}No backups found in:${NC}"
+		echo -e "${opt_baks}"
+		echo -e "${local_baks}"
+	fi
 }
 
 hack_applied() {
-	# shellcheck disable=SC2046
-	return $(strings "$1" | grep usb | xargs | grep -q 'usbF usb0')
+	if strings "$1" | grep usb | xargs | grep -q 'usbF usb0'; then
+		return 0
+	else
+		return 1
+	fi
 }
 
 hack_possible() {
-	# shellcheck disable=SC2046
-	return $(strings "$1" | grep usb | xargs | grep -q 'usb0 usb1')
+	if strings "$1" | grep usb | xargs | grep -q 'usb0 usb1'; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+rm_temp() {
+	echo "Removing ${tmp_xo}"
+	[[ -f "$tmp_xo" ]] && rm $tmp_xo
 }
 
 apply_hack() {
-	echo "webinterface-onboot hack for xochitl versions >= 2.15"
+	echo "webinterface-onboot hack for xochitl versions >= v2.15"
+	echo ""
+	help_vars
+	if [ "$is_hack_version" = true ]; then
+		echo "Compatible xochitl version: v${xo_version}"
+	else
+		echo "Incompatible xochitl version: v${xo_version}"
+		exit 1
+	fi
+	echo "Applying the hack will:"
+	echo " - Store a backup of '${xo_file}' at '${bak_xo}'."
+	echo -n " - Force the web interface to use the usb0 network interface even if "
+	echo "the usb1 network interface is the one connected to your device."
 	echo ""
 
-	hack_vars
-
-	echo "This will store a backup of '${XO_FILE}' at '${BAK_XO}'."
-	printf "This will force the web-interface to use the usb0 interface even if "
-	echo "the usb1 interface is the one connected to your device."
-	echo ""
-
-	if hack_applied $XO_FILE; then
+	if hack_applied $xo_file; then
 		echo "Hack already applied successfully"
-		exit
+		exit 0
 	fi
 
-	if hack_possible $XO_FILE; then
+	if hack_possible $xo_file; then
 		echo "Hack can be applied"
 	else
-		echo "Error: hack can't be applied, something is misconfigured"
-		exit
+		echo "Error: Hack can't be applied, something is misconfigured"
+		exit 1
 	fi
 
-	read -r -p "Would you like to apply hack? [y/N] " response
+	read -r -p "Would you like to continue? [y/N] " response
 	case "$response" in
 	[yY][eE][sS] | [yY])
 		echo "Applying webinterface-onboot hack"
@@ -137,62 +241,62 @@ apply_hack() {
 		;;
 	*)
 		echo "Cancel webinterface-onboot hack"
-		exit
+		exit 0
 		;;
 	esac
 
-	mkdir -p $STORAGE_DIR
+	mkdir -p $storage_dir
 
-	if cp "$XO_FILE" "$BAK_XO"; then
-		echo "Created ${BAK_XO} file"
+	if cp "$xo_file" "$bak_xo"; then
+		echo "Created ${bak_xo} file"
 	else
-		echo "Error: create ${BAK_XO} file"
-		[[ -f "$BAK_XO" ]] && rm "$BAK_XO"
-		exit
+		echo "Error: Create ${bak_xo} file"
+		[[ -f "$bak_xo" ]] && rm "$bak_xo"
+		exit 1
 	fi
 
-	if cp "$XO_FILE" "$TMP_XO"; then
-		echo "Created ${TMP_XO} file"
+	if cp "$xo_file" "$tmp_xo"; then
+		echo "Created ${tmp_xo} file"
 	else
-		echo "Error: create ${TMP_XO} file"
+		echo "Error: Create ${tmp_xo} file"
 		rm_temp
-		exit
+		exit 1
 	fi
 
-	# The entire hack
-	# In the binary, change strings:
+	# The entire hack. In the binary, change strings:
 	#   'usb0' -> 'usbF'
 	#   'usb1' -> 'usb0'
-	if sed -i 's/usb0/usbF/g' "$TMP_XO" &&
-		sed -i 's/usb1/usb0/g' "$TMP_XO"; then
+	if sed -i 's/usb0/usbF/g' "$tmp_xo" &&
+		sed -i 's/usb1/usb0/g' "$tmp_xo"; then
 		echo "Binary strings substituted"
 	else
-		echo "Error: strings not substituted"
+		echo "Error: Binary strings not substituted"
 		rm_temp
-		exit
+		exit 1
 	fi
 
-	if hack_applied "$TMP_XO"; then
-		echo "temp hack application success"
+	if hack_applied "$tmp_xo"; then
+		echo "Temp hack application success"
 	else
-		echo "Error: temp hack application failed"
+		echo "Error: Temp hack application failed"
 		rm_temp
-		exit
+		exit 1
 	fi
 
-	if mv "$TMP_XO" "$XO_FILE"; then
+	if mv "$tmp_xo" "$xo_file"; then
 		rm_temp
 		echo ""
 		echo "Success: webinterface-onboot hack applied"
-		exit
+		exit 0
 	else
-		echo "Error: mv ${TMP_XO} -> ${XO_FILE}"
+		echo "Error: mv ${tmp_xo} -> ${xo_file}"
 		rm_temp
 
-		if cp "$BAK_XO" "$XO_FILE"; then
-			echo "Recovery Success: ${XO_FILE} restored from ${BAK_XO}"
+		if cp "$bak_xo" "$xo_file"; then
+			echo "Recovery Success: ${xo_file} restored from ${bak_xo}"
 		else
-			echo "Recovery Error: cp ${BAK_XO} -> ${XO_FILE}"
+			echo "Recovery Error: cp ${bak_xo} -> ${xo_file}"
+			exit 1
 		fi
 	fi
 }
@@ -200,31 +304,38 @@ apply_hack() {
 revert_hack() {
 	echo "Revert webinterface-onboot hack"
 	echo ""
-	hack_vars
-	printf "This can be done if the backup file generated via the hack is found, "
+	help_vars
+	if [ "$is_hack_version" = true ]; then
+		echo "Compatible xochitl version: v${xo_version}"
+	else
+		echo "Incompatible xochitl version: v${xo_version}"
+		exit 1
+	fi
+	echo -e "This can be done if the backup file generated via the hack is found, "
 	echo "or by applying the hack in reverse order."
 	echo ""
 
-	if hack_possible "$XO_FILE"; then
-		echo "Initital hack has not been applied to this file, nothing to revert"
-		exit
+	if hack_possible "$xo_file"; then
+		echo "Initial hack has not been applied to this file, nothing to revert"
+		exit 0
 	fi
 
-	if [ -f "$BAK_XO" ]; then
-		echo "Backup file found: ${BAK_XO}"
+	if [ -f "$bak_xo" ]; then
+		echo "Backup file found: ${bak_xo}"
 		read -r -p "Would you like to revert from backup file? [y/N] " response
 		case "$response" in
 		[yY][eE][sS] | [yY])
 			echo "Reverting from backup file"
-			revert_from_backup
-			exit
+			if revert_from_backup; then
+				exit 0
+			fi
 			;;
 		*)
 			echo "Cancel revert from backup file"
 			;;
 		esac
 	else
-		echo "Can't find backup file ${BAK_XO}"
+		echo "Can't find backup file ${bak_xo}"
 		echo "Backup files can be at ${STORAGE_HOME} or ${STORAGE_OPT}"
 	fi
 
@@ -241,75 +352,83 @@ revert_hack() {
 
 revert_from_backup() {
 	echo ""
-	if cp "$BAK_XO" "$XO_FILE"; then
-		echo "Success: revert from backup file"
+	if cp "$bak_xo" "$xo_file"; then
+		echo "Success: Revert from backup file"
 		return 0
 	else
-		echo "Error: revert from backup file"
+		echo "Error: Revert from backup file"
 		return 1
 	fi
 }
 
 hack_backwards() {
 	echo ""
-	if ! hack_applied "$XO_FILE"; then
+	if ! hack_applied "$xo_file"; then
 		echo "File can not be reverted"
-		exit
+		exit 1
 	else
 		echo "File can be reverted"
 	fi
 
-	mkdir -p "$STORAGE_DIR"
+	mkdir -p "$storage_dir"
 
-	BAK_APPLIED="${BAK_XO}-hack-applied"
-	if cp "$XO_FILE" "$BAK_APPLIED"; then
+	BAK_APPLIED="${bak_xo}-hack-applied"
+	if cp "$xo_file" "$BAK_APPLIED"; then
 		echo "Created ${BAK_APPLIED} file"
 	else
-		echo "Error: create ${BAK_APPLIED} files"
+		echo "Error: Create ${BAK_APPLIED} files"
 		[[ -f $BAK_APPLIED ]] && rm "$BAK_APPLIED"
-		exit
+		exit 1
 	fi
 
-	if cp "$XO_FILE" "$TMP_XO"; then
-		echo "Created ${TMP_XO} files"
+	if cp "$xo_file" "$tmp_xo"; then
+		echo "Created ${tmp_xo} files"
 	else
-		echo "Error: create ${TMP_XO} files"
+		echo "Error: Create ${tmp_xo} files"
 		rm_temp
-		exit
+		exit 1
 	fi
 
-	if sed -i 's/usb0/usb1/g' "$TMP_XO" &&
-		sed -i 's/usbF/usb0/g' "$TMP_XO"; then
+	if sed -i 's/usb0/usb1/g' "$tmp_xo" &&
+		sed -i 's/usbF/usb0/g' "$tmp_xo"; then
 		echo "Binary strings substituted"
 	else
-		echo "Error: binary strings not substituted"
+		echo "Error: Binary strings not substituted"
 		rm_temp
-		exit
+		exit 1
 	fi
 
-	if hack_possible "$TMP_XO"; then
-		echo "temp hack reversion success"
+	if hack_possible "$tmp_xo"; then
+		echo "Temp hack reversion success"
 	else
-		echo "Error: temp hack reversion failed"
+		echo "Error: Temp hack reversion failed"
 		rm_temp
-		exit
+		exit 1
 	fi
 
-	if mv "$TMP_XO" "$XO_FILE"; then
+	if mv "$tmp_xo" "$xo_file"; then
 		rm_temp
 		echo ""
 		echo "Success: webinterface-onboot hack reverted"
-		exit
+		exit 0
 	else
-		echo "Error: mv ${TMP_XO} -> ${XO_FILE}"
+		echo "Error: mv ${tmp_xo} -> ${xo_file}"
 		rm_temp
 
-		if cp "$BAK_APPLIED" "$XO_FILE"; then
-			echo "Recovery Success: ${XO_FILE} restored from ${BAK_APPLIED}"
+		if cp "$BAK_APPLIED" "$xo_file"; then
+			echo "Recovery Success: ${xo_file} restored from ${BAK_APPLIED}"
 		else
-			echo "Recovery Error: cp ${BAK_APPLIED} -> ${XO_FILE}"
+			echo "Recovery Error: cp ${BAK_APPLIED} -> ${xo_file}"
+			exit 1
 		fi
 	fi
 }
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
 main "$@"
