@@ -21,7 +21,6 @@ remove_removefile() {
 	esac
 }
 
-echo ''
 echo "Remove ${pkgname}"
 echo ''
 echo "This will not remove the /home/root/.local/bin directory nor the path in .bashrc"

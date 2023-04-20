@@ -26,14 +26,12 @@ remove_installfile() {
 	esac
 }
 
-echo ''
-echo "$pkgname"
-echo ''
+echo "${pkgname} ${release}"
 echo "Enable the web interface on boot"
 echo ''
 echo "This program will be installed in ${localbin}"
 echo "${localbin} will be added to the path in ~/.bashrc if necessary"
-
+echo ''
 read -r -p "Would you like to continue with installation? [y/N] " response
 case "$response" in
 [yY][eE][sS] | [yY])
@@ -88,7 +86,7 @@ if [ -f $binfile ]; then
 fi
 if [ "$need_bin" = true ]; then
 	wget "https://github.com/rM-self-serve/${pkgname}/releases/download/${release}/${pkgname}" \
-		-P "$binfile"
+		-O "$binfile"
 
 	if ! pkg_sha_check; then
 		sha_fail
@@ -107,8 +105,8 @@ if [ -f $servicefile ]; then
 	fi
 fi
 if [ "$need_service" = true ]; then
-	wget "https://github.com/rM-self-serve/${pkgname}/releases/download/${release}/${pkgname}" \
-		-P "$servicefile"
+	wget "https://github.com/rM-self-serve/${pkgname}/releases/download/${release}/${pkgname}.service" \
+		-O "$servicefile"
 
 	if ! srvc_sha_check; then
 		sha_fail
@@ -118,10 +116,10 @@ fi
 systemctl daemon-reload
 
 echo ""
-echo "Finished installing ${pkgname}, removing install script"
+echo "Finished installing ${pkgname}"
 echo ""
 echo "To use ${pkgname}, run:"
+echo "$ systemctl enable --now ${pkgname}"
 echo ""
-echo "systemctl enable --now ${pkgname}"
 
 remove_installfile
