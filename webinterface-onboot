@@ -53,13 +53,17 @@ cli_info() {
 	echo '  --run             Run webinterface-onboot in current shell'
 }
 
-run() {
+run_vars() {
 	user_conf='/home/root/.config/remarkable/xochitl.conf'
+	usb0iprange='10.11.99.1/32'
+}
+
+run() {
+	run_vars
 	echo -e "Setting WebInterfaceEnabled=true in ${user_conf}"
 	sed -i 's/WebInterfaceEnabled=false/WebInterfaceEnabled=true/g' "$user_conf"
 	echo -e "${GREEN}Set WebInterfaceEnabled=true in ${user_conf}${NC}"
 
-	usb0iprange='10.11.99.1/32'
 	echo "Adding ${usb0iprange} ip address to usb0"
 	ip addr change $usb0iprange dev usb0
 	echo -e "${GREEN}Added ${usb0iprange} ip address to usb0${NC}"
@@ -98,6 +102,7 @@ help_vars() {
 }
 
 status() {
+	run_vars
 	help_vars
 
 	echo -e "${CYAN}[${NC}XOCHITL WEB INTERFACE${CYAN}]"
@@ -112,6 +117,13 @@ status() {
 	else
 		echo -e "${YELLOW}usb0 network interface does not have 10.11.99.1 ip address${NC}"
 	fi
+
+	if [ "$(cat /sys/class/net/usb0/operstate)" == "up" ]; then
+		echo -e "${PURPLE}usb0 cable ${YELLOW}connected${NC}"
+	else
+		echo -e "${PURPLE}usb0 cable ${YELLOW}not ${PURPLE}connected${NC}"
+	fi
+
 
 	# # ------------------------ SERVICE ------------------------
 	# main_service='webinterface-onboot.service'
@@ -217,8 +229,6 @@ apply_hack() {
 	fi
 	echo "Applying the hack will:"
 	echo " - Store a backup of '${xo_file}' at '${bak_xo}'."
-	echo -n " - Force the web interface to use the usb0 network interface even if "
-	echo "the usb1 network interface is the one connected to your device."
 	echo ""
 
 	if hack_applied $xo_file; then

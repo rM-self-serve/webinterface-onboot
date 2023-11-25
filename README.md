@@ -8,7 +8,9 @@ This simple program will convince the ReMarkable Tablet to start the web interfa
 - ✅ <= v2.14
 - ✅ >= v2.15 - Requires simple binary hack, see below
 
-Tested v1.9 - v3.3 on rM1, v3.3 on rM2
+*Verified:*
+- v1.9 - v3.8 on rM1
+- v3.3 on rM2
 
 ## Maintain Internal Web Interface Accessibility
 
@@ -24,11 +26,32 @@ https://github.com/rM-self-serve/webinterface-persist-ip
 
 ## Install
 
-`$ wget https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/master/install-webint-ob.sh && bash install-webint-ob.sh`
+```
+$ wget https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/master/install-webint-ob.sh && bash install-webint-ob.sh
+$ source ~/.bashrc
+```
 
 ## Remove
 
 `$ wget https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/master/remove-webint-ob.sh && bash remove-webint-ob.sh`
+
+## Binary Hack for Software Versions >= v2.15
+
+The provided functionality to apply/revert the hack will first create a backup, then a temporary file in which the hack is applied. If the temporary file is successfully converted, it will replace the xochitl binary in /usr/bin/.
+
+
+### Apply Hack
+
+This will only need to be done once, unless you upgrade:
+
+`$ webinterface-onboot --apply-hack`
+
+### Revert Hack
+
+Restore from backup or reverse hack:
+
+`$ webinterface-onboot --revert-hack` 
+
 
 ## Usage
 
@@ -42,23 +65,12 @@ https://github.com/rM-self-serve/webinterface-persist-ip
 
 `$ systemctl disable --now webinterface-onboot`
 
-## Binary Hack for Software Versions >= v2.15
 
-The provided functionality to apply/revert the hack will first create a backup of xochitl, then a temporary file in which the strings of the binary are changed. If the temporary file is successfully converted, it will replace the xochitl binary in /usr/bin/.
+### Status
 
+See the status of the web interface, and if >= v2.15, the hack and backups.
 
-### Apply Hack
-
-This will only need to be done once, unless you upgrade:
-
-`$ webinterface-onboot --apply-hack` 
-
-
-### Revert Hack
-
-Restore from backup or reverse hack:
-
-`$ webinterface-onboot --revert-hack` 
+`$ webinterface-onboot --status`
 
 
 ## How Does It Work?
@@ -72,7 +84,7 @@ usb0/usb1 network interface:
 - the device within the tablet that handles the ethernet connection
 
 xochitl:
-- the ReMarkable ereader/ewriter executable binary 
+- the ReMarkable ereader/ewriter executable binary file at /usr/bin/xochitl 
 
 ### Webinterface-Onboot
 
@@ -93,7 +105,7 @@ All the hack does to the xochitl binary:
 - change the string 'usb0' to 'usbF'
 - change the string 'usb1' to 'usb0'
 
-The strings 'usb0' and 'usb1' only occur once in the binary and appear only to be used within the function that decides on which network interface the web interface website should be started on. 
+> The strings 'usb0' and 'usb1' only occur once in the binary and appear only to be used within the function that decides on which network interface the web interface website should be started on. 
 
 Since we are changing hard-coded strings in the binary, the code that uses these strings will roughly be changed from:
 
@@ -111,11 +123,9 @@ fallback_interface = QNetworkInterface::interfaceFromName('usb0')
 
 Without the hack, xochitl will check to see that the primary network interface, usb0, **has an ip address and is connected to a computer** in order to start the web interface on that ip address. If those conditions are not satisfied, xochitl will fallback to checking the usb1 network interface. But for the fallback interface, xochitl **only checks for an ip address** in order to start the web interface, **not if it is connected to a computer**.
 
-We can give the usb0 network interface an ip address at any time, but we can not fake the connection to the computer as it is deduced by the network interface's operational state. This means that without the cable plugged in, the conditions necessary to start the web interface on the primary network interface, usb0, can never be satisfied. Alas, if only the usb0 network interface was to be evaluated as the fallback interface, we could give it an ip address to satisfy the conditions necessary to start the web interface. Get a hoodie on, lets make that happen!
+We can give the usb0 network interface an ip address at any time, but we can not fake the connection to the computer as it is deduced by the network interface's operational state. This means that without the cable plugged in, the conditions necessary to start the web interface on the primary network interface, usb0, can never be satisfied. Alas, if the usb0 network interface was to be evaluated as the fallback interface, we could give it an ip address to satisfy the conditions necessary to start the web interface. Lets make that happen.
 
-In order to evaluate the usb0 network interface as the fallback network interface, all we need to do is change the string 'usb1' to 'usb0' within the xochitl binary. Then xochitl will search for the fallback interface by the name of the string we just changed, usb0, and see if it has a valid ip address to start the web interface.
-
-It is my understanding that the usb1 network interface is unused, so the hack changes the initial occurrence of 'usb0' to 'usbF'. This is so that xochitl can not find the new primary usbF network interface, will always fallback to usb0, and so the binary is easier to verify/revert.
+In order to evaluate the usb0 network interface as the fallback network interface, all we need to do is change the string 'usb1' to 'usb0' within the xochitl binary. Then xochitl will search for the fallback interface by the name of the string we just changed, usb0, and see if it has a valid ip address to start the web interface. The hack changes the initial occurrence of 'usb0' to 'usbF'. This is so that xochitl can not find the new primary usbF network interface, will always fallback to usb0, and so the binary is easier to verify/revert.
 
 ### Psudeo Code
 
@@ -124,13 +134,12 @@ It is my understanding that the usb1 network interface is unused, so the hack ch
 if conf.WebInterfaceEnabled == true:
 
     primary_interface = QNetworkInterface::interfaceFromName('usb0')
+    fallback_interface = QNetworkInterface::interfaceFromName('usb1')
 
     if primary_interface.has_ip() and primary_interface.is_connected():
         start_web_interface( primary_interface.ip )
-
-    fallback_interface = QNetworkInterface::interfaceFromName('usb1')
-
-    if fallback_interface.has_ip():
+    
+    else if fallback_interface.has_ip():
         start_web_interface( fallback_interface.ip )
 ```
 
@@ -139,12 +148,11 @@ if conf.WebInterfaceEnabled == true:
 if conf.WebInterfaceEnabled_conf == true:
 
     primary_interface = QNetworkInterface::interfaceFromName('usbF')
+    fallback_interface = QNetworkInterface::interfaceFromName('usb0')
 
     if primary_interface.has_ip() and primary_interface.is_connected():
         start_web_interface( primary_interface.ip )
 
-    fallback_interface = QNetworkInterface::interfaceFromName('usb0')
-
-    if fallback_interface.has_ip():
+    else if fallback_interface.has_ip():
         start_web_interface( fallback_interface.ip )
 ```
