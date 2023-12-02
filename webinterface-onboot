@@ -5,20 +5,36 @@
 webinterface_onboot_version='v1.1.0'
 
 main() {
-	case "$@" in
+	# collect options before or after command
+	no_prompt=false
+	if nop_match "$1"; then
+		no_prompt=true
+		shift
+	fi
+	cmd=("$1")
+	if [[ "$2" != "" ]]; then
+		shift
+		if [ "$no_prompt" == false ] && nop_match "$1"; then
+			no_prompt=true
+			shift
+		fi
+		cmd+=("$@")
+	fi
+
+	case ${cmd[@]} in
 	'-h' | '--help' | '')
 		cli_info
 		;;
 	'-s' | '--status')
 		status
 		;;
-	'--run')
+	'local-exec')
 		run
 		;;
-	'--apply-hack')
+	'apply')
 		apply_hack
 		;;
-	'--revert-hack')
+	'revert')
 		revert_hack
 		;;
 	*)
@@ -26,6 +42,10 @@ main() {
 		cli_info
 		;;
 	esac
+}
+
+nop_match() {
+	[[ "$1" == *"-y"* ]] || [[ "$1" == *"--no-prompt"* ]]
 }
 
 cli_info() {
@@ -43,14 +63,17 @@ cli_info() {
 	echo '$ systemctl disable --now webinterface-onboot'
 	echo ''
 	echo -e "${CYAN}USAGE:${NC}"
-	echo '  webinterface-onboot [OPTIONS]'
+	echo '  webinterface-onboot [COMMANDS] [OPTIONS]'
+	echo ''
+	echo -e "${CYAN}COMMANDS:${NC}"
+	echo '  apply             Apply webinterface-onboot hack for versions >= v2.15'
+	echo '  revert            Revert webinterface-onboot hack'
+	echo '  local-exec        Run webinterface-onboot in current shell'
 	echo ''
 	echo -e "${CYAN}OPTIONS:${NC}"
 	echo '  -h, --help        Show help'
 	echo '  -s, --status      Status of webinterface-onboot'
-	echo '  --apply-hack      Apply webinterface-onboot hack for versions >= v2.15'
-	echo '  --revert-hack     Revert webinterface-onboot hack'
-	echo '  --run             Run webinterface-onboot in current shell'
+	echo '  -y, --no-prompt   Do not prompt for confirmation'
 }
 
 run_vars() {
@@ -91,12 +114,7 @@ help_vars() {
 	xo_file="/usr/bin/${xo}"
 	share_rel='share/webinterface-onboot'
 	storage_rel="${share_rel}/xochitl_backups"
-	if mount | grep -q '/dev/mmcblk1p7 on /opt'; then
-		app_root='/opt'
-	else
-		app_root='/home/root/.local'
-	fi
-	storage_dir="${app_root}/${storage_rel}"
+	storage_dir="/home/root/.local/${storage_rel}"
 	bak_xo="${storage_dir}/${xo}-${xo_version}-bak"
 	tmp_xo="${storage_dir}/.${xo}.tmp"
 }
@@ -124,7 +142,6 @@ status() {
 		echo -e "${PURPLE}usb0 cable ${YELLOW}not ${PURPLE}connected${NC}"
 	fi
 
-
 	# # ------------------------ SERVICE ------------------------
 	# main_service='webinterface-onboot.service'
 	# echo ''
@@ -149,10 +166,10 @@ status() {
 	echo ''
 	echo -e "${CYAN}[${NC}HACK${CYAN}]"
 	if hack_applied "$xo_file"; then
-		echo -e "${GREEN}Hack is currently applied${NC}"
+		echo -e "${GREEN}Currently applied${NC}"
 	else
-		echo -e "${RED}Hack is not currently applied${NC}"
-		echo " - Run 'webinterface-onboot --apply-hack' for correct function"
+		echo -e "${RED}Not currently applied${NC}"
+		echo " - Run 'webinterface-onboot apply' for correct function"
 	fi
 
 	echo ''
@@ -243,17 +260,19 @@ apply_hack() {
 		exit 1
 	fi
 
-	read -r -p "Would you like to continue? [y/N] " response
-	case "$response" in
-	[yY][eE][sS] | [yY])
-		echo "Applying webinterface-onboot hack"
-		echo ""
-		;;
-	*)
-		echo "Cancel webinterface-onboot hack"
-		exit 0
-		;;
-	esac
+	if [ "$no_prompt" = false ]; then
+		read -r -p "Would you like to continue? [y/N] " response
+		case "$response" in
+		[yY][eE][sS] | [yY])
+			echo "Applying webinterface-onboot hack"
+			echo ""
+			;;
+		*)
+			echo "Cancel webinterface-onboot hack"
+			exit 0
+			;;
+		esac
+	fi
 
 	mkdir -p $storage_dir
 
@@ -329,8 +348,7 @@ revert_hack() {
 		echo "Initial hack has not been applied to this file, nothing to revert"
 		exit 0
 	fi
-
-	if [ -f "$bak_xo" ]; then
+	if [ -f "$bak_xo" ] && [ "$no_prompt" = false ]; then
 		echo "Backup file found: ${bak_xo}"
 		read -r -p "Would you like to revert from backup file? [y/N] " response
 		case "$response" in
@@ -349,15 +367,19 @@ revert_hack() {
 		echo "Backup files can be at ${STORAGE_HOME} or ${STORAGE_OPT}"
 	fi
 
-	read -r -p "Would you like to revert by reversing hack? [y/N] " response
-	case "$response" in
-	[yY][eE][sS] | [yY])
-		hack_backwards
-		;;
-	*)
-		echo "Cancel revert from reverse hack"
-		;;
-	esac
+	if [ "$no_prompt" = false ]; then
+		read -r -p "Would you like to revert by reversing hack? [y/N] " response
+		case "$response" in
+		[yY][eE][sS] | [yY])
+			true
+			;;
+		*)
+			echo "Cancel revert from reverse hack"
+			exit 0
+			;;
+		esac
+	fi
+	hack_backwards
 }
 
 revert_from_backup() {
