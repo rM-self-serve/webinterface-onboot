@@ -2,15 +2,16 @@
 # Copyright (c) 2023 rM-self-serve
 # SPDX-License-Identifier: MIT
 
-webinterface_onboot_sha256sum='47d712800b01bea60281d8eadf6ca0f47e1c55309c68a5e0b2c2dde33728492f'
-service_file_sha256sum='57d7f1f6ebe7bfccf435c11b12e4bec1f58f72f1a7af963e5e58e626f241ccf6'
+webinterface_onboot_sha256sum='8d85162190511fd2da47276ccf122370ec9445c3cd54f7c519d0a821a759e4e7'
+service_file_sha256sum='64cfdd5c8eaea1bc8df2e734a41c7ff038585cc2f4248c79e50531901b1ef651'
 
-release='v1.1.0'
+release='v1.2.0'
 
 installfile='./install-webint-ob.sh'
 pkgname='webinterface-onboot'
 localbin='/home/root/.local/bin'
 binfile="${localbin}/${pkgname}"
+aliasfile="${localbin}/webint-onboot"
 servicefile="/lib/systemd/system/${pkgname}.service"
 
 remove_installfile() {
@@ -71,6 +72,7 @@ sha_fail() {
 	echo "Exiting installer and removing installed files"
 	[[ -f $binfile ]] && rm $binfile
 	[[ -f $servicefile ]] && rm $servicefile
+	[[ -f $aliasfile ]] && rm $aliasfile
 	remove_installfile
 	exit
 }
@@ -92,7 +94,8 @@ if [ "$need_bin" = true ]; then
 		sha_fail
 	fi
 
-	chmod +x "${localbin}/${pkgname}"
+	chmod +x "$binfile"
+	ln -s "$binfile" "$aliasfile"
 fi
 
 need_service=true
@@ -127,6 +130,5 @@ echo ""
 echo "You may first need to run:"
 echo "$ source ~/.bashrc"
 echo ""
-
 
 remove_installfile

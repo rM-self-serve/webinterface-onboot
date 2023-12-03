@@ -6,6 +6,7 @@ pkgname='webinterface-onboot'
 removefile='./remove-webint-ob.sh'
 localbin='/home/root/.local/bin'
 binfile="${localbin}/${pkgname}"
+aliasfile="${localbin}/webint-onboot"
 servicefile="/lib/systemd/system/${pkgname}.service"
 
 remove_removefile() {
@@ -41,6 +42,7 @@ case "$response" in
 esac
 
 [[ -f $binfile ]] && rm $binfile
+[[ -f $aliasfile ]] && rm $aliasfile
 
 if systemctl --quiet is-active "$pkgname" 2>/dev/null; then
 	echo "Stopping $pkgname"

@@ -2,7 +2,7 @@
 # Copyright (c) 2023 rM-self-serve
 # SPDX-License-Identifier: MIT
 
-webinterface_onboot_version='v1.1.0'
+webinterface_onboot_version='v1.2.0'
 
 main() {
 	# collect options before or after command
@@ -31,17 +31,57 @@ main() {
 	'local-exec')
 		run
 		;;
-	'apply')
+	'apply-hack')
+		checkspace
 		apply_hack
 		;;
-	'revert')
+	'revert-hack')
+		checkspace
 		revert_hack
+		;;
+	'apply-prstip')
+		checkspace
+		apply_prstip
+		;;
+	'revert-prstip')
+		checkspace
+		revert_prstip
 		;;
 	*)
 		echo 'input not recognized'
 		cli_info
 		;;
 	esac
+}
+
+checkspace() {
+	if ! _checkspace / 1; then
+		(
+			echo "Not enough space on /"
+			echo "Try to free space by running: journalctl --vacuum-time=1m"
+			echo "Or: systemctl restart xochitl"
+			exit 10
+		)
+		exit 1
+	fi
+	if ! _checkspace /home 10; then
+		(
+			echo "Not enough space on /home"
+			exit 10
+		)
+		exit 1
+	fi
+}
+
+_checkspace() {
+	part=$1
+	needed=$2
+	_available=$(df "$part" | tail -n1 | awk '{print $4}')
+	available=$(("$_available" / 1024))
+	if [ $available -lt "$needed" ]; then
+		echo "Less than ${needed}MB free, ${available}MB"
+		return 1
+	fi
 }
 
 nop_match() {
@@ -54,6 +94,8 @@ cli_info() {
 	echo 'This simple program will convince the ReMarkable Tablet to start'
 	echo 'the web interface after booting without the usb cord being plugged in.'
 	echo 'Xochitl versions >= v2.15 require simple binary hack.'
+	echo 'Use the persist ip modification to keep the web interface accessible'
+	echo 'after unplugging the cable.'
 	echo 'Source+Docs: https://github.com/rM-self-serve/webinterface-onboot'
 	echo ''
 	echo -e "${CYAN}ENABLE/USE:${NC}"
@@ -66,14 +108,16 @@ cli_info() {
 	echo '  webinterface-onboot [COMMANDS] [OPTIONS]'
 	echo ''
 	echo -e "${CYAN}COMMANDS:${NC}"
-	echo '  apply             Apply webinterface-onboot hack for versions >= v2.15'
-	echo '  revert            Revert webinterface-onboot hack'
+	echo '  apply-hack        Apply webinterface-onboot hack for versions >= v2.15'
+	echo '  revert-hack       Revert webinterface-onboot hack'
+	echo '  apply-prstip      Apply persist ip modification'
+	echo '  revert-prstip     Revert persist ip modification'
 	echo '  local-exec        Run webinterface-onboot in current shell'
 	echo ''
 	echo -e "${CYAN}OPTIONS:${NC}"
-	echo '  -h, --help        Show help'
 	echo '  -s, --status      Status of webinterface-onboot'
 	echo '  -y, --no-prompt   Do not prompt for confirmation'
+	echo '  -h, --help        Show help'
 }
 
 run_vars() {
@@ -129,17 +173,19 @@ status() {
 	else
 		echo -e "${RED}Not running${NC}"
 	fi
-
+	echo ''
+	echo -e "${CYAN}[${NC}usb0 NETWORK INTERFACE${CYAN}]"
 	if ip a | grep -qE "10.11.99.1/[32|29]"; then
-		echo -e "${GREEN}usb0 network interface has 10.11.99.1 ip address${NC}"
+		echo -e "${GREEN}Has 10.11.99.1 ip address${NC}"
 	else
-		echo -e "${YELLOW}usb0 network interface does not have 10.11.99.1 ip address${NC}"
+		echo -e "${YELLOW}Does not have 10.11.99.1 ip address${NC}"
 	fi
-
+	echo ''
+	echo -e "${CYAN}[${NC}usb0 CABLE${CYAN}]"
 	if [ "$(cat /sys/class/net/usb0/operstate)" == "up" ]; then
-		echo -e "${PURPLE}usb0 cable ${YELLOW}connected${NC}"
+		echo -e "${PURPLE}connected${NC}"
 	else
-		echo -e "${PURPLE}usb0 cable ${YELLOW}not ${PURPLE}connected${NC}"
+		echo -e "${CYAN}not connected${NC}"
 	fi
 
 	# # ------------------------ SERVICE ------------------------
@@ -159,6 +205,15 @@ status() {
 	# fi
 	# # ------------------------ SERVICE ------------------------
 
+	vars_prstip
+	echo ''
+	echo -e "${CYAN}[${NC}PERSIST IP${CYAN}]"
+	if is_action_moded "$prstip_content"; then
+		echo -e "${GREEN}Currently applied${NC}"
+	else
+		echo -e "${YELLOW}Not currently applied${NC}"
+	fi
+
 	if [ "$is_hack_version" = false ]; then
 		exit
 	fi
@@ -169,7 +224,7 @@ status() {
 		echo -e "${GREEN}Currently applied${NC}"
 	else
 		echo -e "${RED}Not currently applied${NC}"
-		echo " - Run 'webinterface-onboot apply' for correct function"
+		echo " - Run 'webinterface-onboot apply-hack' for correct function"
 	fi
 
 	echo ''
@@ -181,7 +236,7 @@ status() {
 		bak_files=$(find "$opt_baks" -name '*-bak*')
 		if [ -n "$bak_files" ]; then
 			backup_found=true
-			echo -e "${PURPLE}${opt_baks}${NC}"
+			echo -e "${CYAN}${opt_baks}${NC}"
 			bak_files_xargs=$(echo "$bak_files" | xargs)
 			IFS=' ' read -r -a arrayaa <<<"$bak_files_xargs"
 			for element in "${arrayaa[@]}"; do
@@ -196,7 +251,7 @@ status() {
 		bak_files=$(find "$local_baks" -name '*-bak*')
 		if [ -n "$bak_files" ]; then
 			backup_found=true
-			echo -e "${PURPLE}${local_baks}${NC}"
+			echo -e "${CYAN}${local_baks}${NC}"
 			bak_files_xargs=$(echo "$bak_files" | xargs)
 			IFS=' ' read -r -a arrayab <<<"$bak_files_xargs"
 			for element in "${arrayab[@]}"; do
@@ -214,19 +269,11 @@ status() {
 }
 
 hack_applied() {
-	if strings "$1" | grep usb | xargs | grep -q 'usbF usb0'; then
-		return 0
-	else
-		return 1
-	fi
+	strings "$1" | grep usb | xargs | grep -q 'usbF usb0'
 }
 
 hack_possible() {
-	if strings "$1" | grep usb | xargs | grep -q 'usb0 usb1'; then
-		return 0
-	else
-		return 1
-	fi
+	strings "$1" | grep usb | xargs | grep -q 'usb0 usb1'
 }
 
 rm_temp() {
@@ -316,6 +363,7 @@ apply_hack() {
 		rm_temp
 		echo ""
 		echo "Success: webinterface-onboot hack applied"
+		echo "Now run: systemctl restart xochitl"
 		exit 0
 	else
 		echo "Error: mv ${tmp_xo} -> ${xo_file}"
@@ -348,23 +396,25 @@ revert_hack() {
 		echo "Initial hack has not been applied to this file, nothing to revert"
 		exit 0
 	fi
-	if [ -f "$bak_xo" ] && [ "$no_prompt" = false ]; then
-		echo "Backup file found: ${bak_xo}"
-		read -r -p "Would you like to revert from backup file? [y/N] " response
-		case "$response" in
-		[yY][eE][sS] | [yY])
-			echo "Reverting from backup file"
-			if revert_from_backup; then
-				exit 0
-			fi
-			;;
-		*)
-			echo "Cancel revert from backup file"
-			;;
-		esac
-	else
-		echo "Can't find backup file ${bak_xo}"
-		echo "Backup files can be at ${STORAGE_HOME} or ${STORAGE_OPT}"
+	if [ "$no_prompt" = false ]; then
+		if [ -f "$bak_xo" ]; then
+			echo "Backup file found: ${bak_xo}"
+			read -r -p "Would you like to revert from backup file? [y/N] " response
+			case "$response" in
+			[yY][eE][sS] | [yY])
+				echo "Reverting from backup file"
+				if revert_from_backup; then
+					exit 0
+				fi
+				;;
+			*)
+				echo "Cancel revert from backup file"
+				;;
+			esac
+		else
+			echo "Can't find backup file ${bak_xo}"
+			echo "Backup files can be at ${STORAGE_HOME} or ${STORAGE_OPT}"
+		fi
 	fi
 
 	if [ "$no_prompt" = false ]; then
@@ -386,6 +436,7 @@ revert_from_backup() {
 	echo ""
 	if cp "$bak_xo" "$xo_file"; then
 		echo "Success: Revert from backup file"
+		echo "Now run: systemctl restart xochitl"
 		return 0
 	else
 		echo "Error: Revert from backup file"
@@ -442,6 +493,7 @@ hack_backwards() {
 		rm_temp
 		echo ""
 		echo "Success: webinterface-onboot hack reverted"
+		echo "Now run: systemctl restart xochitl"
 		exit 0
 	else
 		echo "Error: mv ${tmp_xo} -> ${xo_file}"
@@ -454,6 +506,111 @@ hack_backwards() {
 			exit 1
 		fi
 	fi
+}
+
+vars_prstip() {
+	get_version
+
+	prstip_bak_dir='/home/root/.local/share/webinterface-onboot/prstip_backups'
+	prstip_bak_file="$prstip_bak_dir/ifplugd.action-$xo_version-bak"
+
+	prstip_file='/etc/ifplugd/ifplugd.action'
+	prstip_content=$(cat $prstip_file)
+	total_line=$(echo "$prstip_content" | wc -l)
+
+	prstip_tmp="$prstip_bak_dir/.webint-onboot_prstip.ifplugd.action.tmp"
+	ip_cmd="ip addr change 10.11.99.1/32 dev usb0"
+}
+
+is_action_moded() {
+	echo "$1" | grep -qhE "$ip_cmd"
+}
+
+apply_prstip() {
+	set -e
+	vars_prstip
+
+	echo "Applying webint-upldbtn will edit: $prstip_file"
+	echo 'And create a backup at:'
+	echo "$prstip_bak_file"
+	echo ""
+
+	if [ "$no_prompt" = false ]; then
+		read -r -p "Would you like to continue? [y/N] " response
+		case "$response" in
+		[yY][eE][sS] | [yY])
+			true
+			;;
+		*)
+			echo "Cancel"
+			exit
+			;;
+		esac
+	fi
+	apply_prstip_act
+}
+
+apply_prstip_act() {
+	if is_action_moded "$prstip_content"; then
+		echo "Persist ip already applied"
+		exit
+	fi
+
+	mkdir -p "$prstip_bak_dir"
+	cp "$prstip_file" "$prstip_bak_file"
+
+	[[ -f $prstip_tmp ]] && rm "$prstip_tmp"
+	cp "$prstip_file" "$prstip_tmp"
+
+	stop_line=$(echo "$prstip_content" | grep -n 'systemctl stop' | cut -d : -f 1)
+	root_line="$((stop_line + 1))"
+	{
+		echo "$prstip_content" | sed -n 1,"$stop_line"p
+		echo "    $ip_cmd"
+		echo "$prstip_content" | sed -n "$root_line","$total_line"p
+	} >"$prstip_tmp"
+
+	cp "$prstip_tmp" "$prstip_file" && rm "$prstip_tmp"
+	echo "Persist ip applied"
+}
+
+revert_prstip() {
+	set -e
+	vars_prstip
+
+	if [ "$no_prompt" = false ]; then
+		read -r -p "Would you like to revert persist ip? [y/N] " response
+		case "$response" in
+		[yY][eE][sS] | [yY])
+			true
+			;;
+		*)
+			echo "Cancel"
+			exit
+			;;
+		esac
+	fi
+	revert_prstip_act
+}
+
+revert_prstip_act() {
+	if ! is_action_moded "$prstip_content"; then
+		echo "Persist ip has not been applied"
+		exit
+	fi
+
+	[[ -f "$prstip_tmp" ]] && rm "$prstip_tmp"
+	cp "$prstip_file" "$prstip_tmp"
+
+	stop_line=$(echo "$prstip_content" | grep -n "$ip_cmd" | cut -d : -f 1)
+	stop_line="$((stop_line - 1))"
+	root_line="$((stop_line + 2))"
+	{
+		sed -n 1,"$stop_line"p "$prstip_file"
+		sed -n "$root_line","$total_line"p "$prstip_file"
+	} >"$prstip_tmp"
+	cp "$prstip_tmp" "$prstip_file" && rm "$prstip_tmp"
+	echo "Persist ip reverted"
 }
 
 RED='\033[0;31m'
