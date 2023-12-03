@@ -6,6 +6,8 @@
 
 This simple program will convince the ReMarkable Tablet to start the web interface after booting without the usb cable being plugged in. Eliminates the need to switch on the web interface setting after connecting the usb cable. Also useful for clients that leverage the web interface for file operations, namely access over [wifi](https://github.com/rM-self-serve/webinterface-wifi).
 
+![demo](https://github.com/rM-self-serve/webinterface-onboot/assets/122753594/89d49258-01b9-42ff-b611-1144ce02621e)
+
 
 ## ReMarkable Software Version Compatibility
 
@@ -74,16 +76,7 @@ Disconnecting the usb cable will remove the ip address from the usb0 network int
 
 ### Status
 `$ webint-onboot --status`
-
-- web interface
-- usb0 network interface
-- cable
-- persist ip
-  
-\>= v2.15
-- hack
-- backup files
-
+![demo](https://github.com/rM-self-serve/webinterface-onboot/assets/122753594/1decf76a-a03a-4ba9-b5ac-352d04d3d345)
 
 ## How Does It Work?
 

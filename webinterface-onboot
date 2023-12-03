@@ -183,9 +183,9 @@ status() {
 	echo ''
 	echo -e "${CYAN}[${NC}usb0 CABLE${CYAN}]"
 	if [ "$(cat /sys/class/net/usb0/operstate)" == "up" ]; then
-		echo -e "${PURPLE}connected${NC}"
+		echo -e "${PURPLE}Connected${NC}"
 	else
-		echo -e "${CYAN}not connected${NC}"
+		echo -e "${CYAN}Not connected${NC}"
 	fi
 
 	# # ------------------------ SERVICE ------------------------

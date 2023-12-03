@@ -119,16 +119,9 @@ fi
 systemctl daemon-reload
 
 echo ""
-echo "Finished installing ${pkgname}"
+echo "Finished installing $pkgname"
 echo ""
-echo "To use ${pkgname}, run:"
-echo "$ systemctl enable --now ${pkgname}"
-echo ""
-echo "You will likely need to apply the hack, run:"
-echo "$ webinterface-onboot --apply-hack"
-echo ""
-echo "You may first need to run:"
-echo "$ source ~/.bashrc"
+echo "Run '\$ $pkgname' for information on usage."
 echo ""
 
 remove_installfile
