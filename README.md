@@ -76,6 +76,7 @@ Disconnecting the usb cable will remove the ip address from the usb0 network int
 
 ### Status
 `$ webint-onboot --status`
+
 ![demo](https://github.com/rM-self-serve/webinterface-onboot/assets/122753594/1decf76a-a03a-4ba9-b5ac-352d04d3d345)
 
 ## How Does It Work?
