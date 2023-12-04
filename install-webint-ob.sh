@@ -2,10 +2,10 @@
 # Copyright (c) 2023 rM-self-serve
 # SPDX-License-Identifier: MIT
 
-webinterface_onboot_sha256sum='8d85162190511fd2da47276ccf122370ec9445c3cd54f7c519d0a821a759e4e7'
+webinterface_onboot_sha256sum='edad550010f408ede2d85f723174735a19e9ffa12ffa31330a3b772e339ed841'
 service_file_sha256sum='64cfdd5c8eaea1bc8df2e734a41c7ff038585cc2f4248c79e50531901b1ef651'
 
-release='v1.2.0'
+release='v1.2.1'
 
 installfile='./install-webint-ob.sh'
 pkgname='webinterface-onboot'

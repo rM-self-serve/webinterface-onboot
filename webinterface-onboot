@@ -2,24 +2,30 @@
 # Copyright (c) 2023 rM-self-serve
 # SPDX-License-Identifier: MIT
 
-webinterface_onboot_version='v1.2.0'
+webinterface_onboot_version='v1.2.1'
 
 main() {
 	# collect options before or after command
 	no_prompt=false
-	if nop_match "$1"; then
-		no_prompt=true
-		shift
-	fi
-	cmd=("$1")
-	if [[ "$2" != "" ]]; then
-		shift
-		if [ "$no_prompt" == false ] && nop_match "$1"; then
+	revert_backup=false
+	revert_reverse=false
+	cmd=()
+	for value in "$@"; do
+		case $value in
+		'-y' | '--no-prompt')
 			no_prompt=true
-			shift
-		fi
-		cmd+=("$@")
-	fi
+			;;
+		'-b' | '--backup')
+			revert_backup=true
+			;;
+		'-r' | '--reverse')
+			revert_reverse=true
+			;;
+		*)
+			cmd+=("$value")
+			;;
+		esac
+	done
 
 	case ${cmd[@]} in
 	'-h' | '--help' | '')
@@ -32,60 +38,28 @@ main() {
 		run
 		;;
 	'apply-hack')
-		checkspace
 		apply_hack
 		;;
 	'revert-hack')
-		checkspace
 		revert_hack
 		;;
 	'apply-prstip')
-		checkspace
 		apply_prstip
 		;;
 	'revert-prstip')
-		checkspace
 		revert_prstip
+		;;
+	'is-hack-applied')
+		cli_hack_applied
+		;;
+	'is-prstip-applied')
+		cli_prstip_applied
 		;;
 	*)
 		echo 'input not recognized'
 		cli_info
 		;;
 	esac
-}
-
-checkspace() {
-	if ! _checkspace / 1; then
-		(
-			echo "Not enough space on /"
-			echo "Try to free space by running: journalctl --vacuum-time=1m"
-			echo "Or: systemctl restart xochitl"
-			exit 10
-		)
-		exit 1
-	fi
-	if ! _checkspace /home 10; then
-		(
-			echo "Not enough space on /home"
-			exit 10
-		)
-		exit 1
-	fi
-}
-
-_checkspace() {
-	part=$1
-	needed=$2
-	_available=$(df "$part" | tail -n1 | awk '{print $4}')
-	available=$(("$_available" / 1024))
-	if [ $available -lt "$needed" ]; then
-		echo "Less than ${needed}MB free, ${available}MB"
-		return 1
-	fi
-}
-
-nop_match() {
-	[[ "$1" == *"-y"* ]] || [[ "$1" == *"--no-prompt"* ]]
 }
 
 cli_info() {
@@ -108,16 +82,18 @@ cli_info() {
 	echo '  webinterface-onboot [COMMANDS] [OPTIONS]'
 	echo ''
 	echo -e "${CYAN}COMMANDS:${NC}"
-	echo '  apply-hack        Apply webinterface-onboot hack for versions >= v2.15'
-	echo '  revert-hack       Revert webinterface-onboot hack'
-	echo '  apply-prstip      Apply persist ip modification'
-	echo '  revert-prstip     Revert persist ip modification'
-	echo '  local-exec        Run webinterface-onboot in current shell'
+	echo '  apply-hack         Apply webinterface-onboot hack'
+	echo '  revert-hack        Revert webinterface-onboot hack'
+	echo '  apply-prstip       Apply persist ip modification'
+	echo '  revert-prstip      Revert persist ip modification'
+	echo '  is-hack-applied    Return true or false'
+	echo '  is-prstip-applied  Return true or false'
+	echo '  local-exec         Run webinterface-onboot in current shell'
 	echo ''
 	echo -e "${CYAN}OPTIONS:${NC}"
-	echo '  -s, --status      Status of webinterface-onboot'
-	echo '  -y, --no-prompt   Do not prompt for confirmation'
-	echo '  -h, --help        Show help'
+	echo '  -s, --status       Status of webinterface-onboot'
+	echo '  -y, --no-prompt    Do not prompt for confirmation'
+	echo '  -h, --help         Show help'
 }
 
 run_vars() {
@@ -268,6 +244,24 @@ status() {
 	fi
 }
 
+cli_hack_applied() {
+	help_vars
+	if ! hack_applied "$xo_file"; then
+		echo "false"
+		exit 1
+	fi
+	echo "true"
+}
+
+cli_prstip_applied() {
+	vars_prstip
+	if ! is_action_moded "$prstip_content"; then
+		echo "false"
+		exit 1
+	fi
+	echo "true"
+}
+
 hack_applied() {
 	strings "$1" | grep usb | xargs | grep -q 'usbF usb0'
 }
@@ -363,7 +357,6 @@ apply_hack() {
 		rm_temp
 		echo ""
 		echo "Success: webinterface-onboot hack applied"
-		echo "Now run: systemctl restart xochitl"
 		exit 0
 	else
 		echo "Error: mv ${tmp_xo} -> ${xo_file}"
@@ -379,10 +372,25 @@ apply_hack() {
 }
 
 revert_hack() {
+	if [ "$revert_backup" == true ] && [ "$revert_reverse" == true ]; then
+		echo "Select either --backup or --reverse"
+		exit 1
+	fi
+	if [ "$no_prompt" == true ] && [ "$revert_backup" == false ] && [ "$revert_reverse" == false ]; then
+		echo "Select either --backup or --reverse"
+		exit 1
+	fi
+
 	echo "Revert webinterface-onboot hack"
 	echo ""
 	help_vars
-	if [ "$is_hack_version" = true ]; then
+
+	if hack_possible "$xo_file"; then
+		echo "Initial hack has not been applied to this file, nothing to revert"
+		exit 0
+	fi
+
+	if [ "$is_hack_version" == true ]; then
 		echo "Compatible xochitl version: v${xo_version}"
 	else
 		echo "Incompatible xochitl version: v${xo_version}"
@@ -392,20 +400,19 @@ revert_hack() {
 	echo "or by applying the hack in reverse order."
 	echo ""
 
-	if hack_possible "$xo_file"; then
-		echo "Initial hack has not been applied to this file, nothing to revert"
-		exit 0
-	fi
-	if [ "$no_prompt" = false ]; then
+	if [ "$revert_reverse" == false ]; then
 		if [ -f "$bak_xo" ]; then
 			echo "Backup file found: ${bak_xo}"
+			if [ "$no_prompt" == true ]; then
+				echo "Reverting from backup file"
+				revert_from_backup && exit 0 || exit 1
+			fi
+
 			read -r -p "Would you like to revert from backup file? [y/N] " response
 			case "$response" in
 			[yY][eE][sS] | [yY])
 				echo "Reverting from backup file"
-				if revert_from_backup; then
-					exit 0
-				fi
+				revert_from_backup && exit 0
 				;;
 			*)
 				echo "Cancel revert from backup file"
@@ -413,11 +420,12 @@ revert_hack() {
 			esac
 		else
 			echo "Can't find backup file ${bak_xo}"
-			echo "Backup files can be at ${STORAGE_HOME} or ${STORAGE_OPT}"
+			[ "$revert_backup" == true ] && exit 1
 		fi
 	fi
 
-	if [ "$no_prompt" = false ]; then
+	if [ "$no_prompt" == false ]; then
+		echo ""
 		read -r -p "Would you like to revert by reversing hack? [y/N] " response
 		case "$response" in
 		[yY][eE][sS] | [yY])
@@ -436,7 +444,6 @@ revert_from_backup() {
 	echo ""
 	if cp "$bak_xo" "$xo_file"; then
 		echo "Success: Revert from backup file"
-		echo "Now run: systemctl restart xochitl"
 		return 0
 	else
 		echo "Error: Revert from backup file"
@@ -493,7 +500,6 @@ hack_backwards() {
 		rm_temp
 		echo ""
 		echo "Success: webinterface-onboot hack reverted"
-		echo "Now run: systemctl restart xochitl"
 		exit 0
 	else
 		echo "Error: mv ${tmp_xo} -> ${xo_file}"
@@ -530,7 +536,7 @@ apply_prstip() {
 	set -e
 	vars_prstip
 
-	echo "Applying webint-upldbtn will edit: $prstip_file"
+	echo "Applying the persist ip modification will edit: $prstip_file"
 	echo 'And create a backup at:'
 	echo "$prstip_bak_file"
 	echo ""
