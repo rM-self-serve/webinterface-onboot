@@ -38,15 +38,19 @@ main() {
 		run
 		;;
 	'apply-hack')
+		checkspace
 		apply_hack
 		;;
 	'revert-hack')
+		checkspace
 		revert_hack
 		;;
 	'apply-prstip')
+		checkspace
 		apply_prstip
 		;;
 	'revert-prstip')
+		checkspace
 		revert_prstip
 		;;
 	'is-hack-applied')
@@ -94,6 +98,36 @@ cli_info() {
 	echo '  -s, --status       Status of webinterface-onboot'
 	echo '  -y, --no-prompt    Do not prompt for confirmation'
 	echo '  -h, --help         Show help'
+}
+
+checkspace() {
+	if ! _checkspace / 1; then
+		(
+			echo "Not enough space on /"
+			echo "Try to free space by running: journalctl --vacuum-time=1m"
+			echo "Or: systemctl restart xochitl"
+			exit 10
+		)
+		exit 1
+	fi
+	if ! _checkspace /home 12; then
+		(
+			echo "Not enough space on /home"
+			exit 10
+		)
+		exit 1
+	fi
+}
+
+_checkspace() {
+	part=$1
+	needed=$2
+	_available=$(df "$part" | tail -n1 | awk '{print $4}')
+	available=$(("$_available" / 1024))
+	if [ $available -lt "$needed" ]; then
+		echo "Less than ${needed}MB free, ${available}MB"
+		return 1
+	fi
 }
 
 run_vars() {
