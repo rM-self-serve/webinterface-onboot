@@ -62,6 +62,9 @@ main() {
 	'is-prstip-applied')
 		cli_prstip_applied
 		;;
+	'has-backup')
+		cli_has_bak
+		;;
 	*)
 		echo 'input not recognized'
 		cli_info
@@ -96,6 +99,7 @@ cli_info() {
 	echo '  is-hack-version    Return true or false'
 	echo '  is-hack-applied    Return true or false'
 	echo '  is-prstip-applied  Return true or false'
+	echo '  has-backup         Return true or false'
 	echo '  local-exec         Run webinterface-onboot in current shell'
 	echo ''
 	echo -e "${CYAN}OPTIONS:${NC}"
@@ -305,6 +309,15 @@ cli_hack_applied() {
 cli_prstip_applied() {
 	vars_prstip
 	if ! is_action_moded "$prstip_content"; then
+		echo "false"
+		exit 1
+	fi
+	echo "true"
+}
+
+cli_has_bak () {
+	help_vars
+	if ! [ -f "$bak_xo" ]; then
 		echo "false"
 		exit 1
 	fi
