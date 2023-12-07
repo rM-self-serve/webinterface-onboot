@@ -115,15 +115,15 @@ checkspace() {
 			echo "Try to free space by running: journalctl --vacuum-time=1m"
 			echo "Or: systemctl restart xochitl"
 			exit 10
-		)
-		exit 1
+		) >&2
+		exit 10
 	fi
 	if ! _checkspace /home 12; then
 		(
 			echo "Not enough space on /home"
 			exit 10
-		)
-		exit 1
+		) >&2
+		exit 10
 	fi
 }
 
@@ -133,7 +133,7 @@ _checkspace() {
 	_available=$(df "$part" | tail -n1 | awk '{print $4}')
 	available=$(("$_available" / 1024))
 	if [ $available -lt "$needed" ]; then
-		echo "Less than ${needed}MB free, ${available}MB"
+		echo >&2 "Less than ${needed}MB free, ${available}MB"
 		return 1
 	fi
 }
@@ -157,7 +157,7 @@ run() {
 get_version() {
 	conf_file='/usr/share/remarkable/update.conf'
 	if ! [ -f $conf_file ]; then
-		echo "Error: Can't find ${conf_file}"
+		echo >&2 "Error: Can't find ${conf_file}"
 		exit 1
 	fi
 	xo_version=$(grep 'REMARKABLE_RELEASE_VERSION' $conf_file | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+')
@@ -286,7 +286,15 @@ status() {
 	fi
 }
 
-cli_hack_vers () {
+hack_applied() {
+	strings "$1" | grep usb | xargs | grep -q 'usbF usb0'
+}
+
+hack_possible() {
+	strings "$1" | grep usb | xargs | grep -q 'usb0 usb1'
+}
+
+cli_hack_vers() {
 	get_version
 	if [ "$is_hack_version" = true ]; then
 		echo "Compatible xochitl version: v${xo_version}"
@@ -315,21 +323,13 @@ cli_prstip_applied() {
 	echo "true"
 }
 
-cli_has_bak () {
+cli_has_bak() {
 	help_vars
 	if ! [ -f "$bak_xo" ]; then
 		echo "false"
 		exit 1
 	fi
 	echo "true"
-}
-
-hack_applied() {
-	strings "$1" | grep usb | xargs | grep -q 'usbF usb0'
-}
-
-hack_possible() {
-	strings "$1" | grep usb | xargs | grep -q 'usb0 usb1'
 }
 
 rm_temp() {
@@ -344,7 +344,7 @@ apply_hack() {
 	if [ "$is_hack_version" = true ]; then
 		echo "Compatible xochitl version: v${xo_version}"
 	else
-		echo "Incompatible xochitl version: v${xo_version}"
+		echo >&2 "Incompatible xochitl version: v${xo_version}"
 		exit 1
 	fi
 	echo "Applying the hack will:"
@@ -359,7 +359,7 @@ apply_hack() {
 	if hack_possible $xo_file; then
 		echo "Hack can be applied"
 	else
-		echo "Error: Hack can't be applied, something is misconfigured"
+		echo >&2 "Error: Hack can't be applied, something is misconfigured"
 		exit 1
 	fi
 
@@ -382,7 +382,7 @@ apply_hack() {
 	if cp "$xo_file" "$bak_xo"; then
 		echo "Created ${bak_xo} file"
 	else
-		echo "Error: Create ${bak_xo} file"
+		echo >&2 "Error: Create ${bak_xo} file"
 		[[ -f "$bak_xo" ]] && rm "$bak_xo"
 		exit 1
 	fi
@@ -390,7 +390,7 @@ apply_hack() {
 	if cp "$xo_file" "$tmp_xo"; then
 		echo "Created ${tmp_xo} file"
 	else
-		echo "Error: Create ${tmp_xo} file"
+		echo >&2 "Error: Create ${tmp_xo} file"
 		rm_temp
 		exit 1
 	fi
@@ -402,7 +402,7 @@ apply_hack() {
 		sed -i 's/usb1/usb0/g' "$tmp_xo"; then
 		echo "Binary strings substituted"
 	else
-		echo "Error: Binary strings not substituted"
+		echo >&2 "Error: Binary strings not substituted"
 		rm_temp
 		exit 1
 	fi
@@ -410,7 +410,7 @@ apply_hack() {
 	if hack_applied "$tmp_xo"; then
 		echo "Temp hack application success"
 	else
-		echo "Error: Temp hack application failed"
+		echo >&2 "Error: Temp hack application failed"
 		rm_temp
 		exit 1
 	fi
@@ -421,13 +421,13 @@ apply_hack() {
 		echo "Success: webinterface-onboot hack applied"
 		exit 0
 	else
-		echo "Error: mv ${tmp_xo} -> ${xo_file}"
+		echo >&2 "Error: mv ${tmp_xo} -> ${xo_file}"
 		rm_temp
 
 		if cp "$bak_xo" "$xo_file"; then
 			echo "Recovery Success: ${xo_file} restored from ${bak_xo}"
 		else
-			echo "Recovery Error: cp ${bak_xo} -> ${xo_file}"
+			echo >&2 "Recovery Error: cp ${bak_xo} -> ${xo_file}"
 			exit 1
 		fi
 	fi
@@ -435,11 +435,11 @@ apply_hack() {
 
 revert_hack() {
 	if [ "$revert_backup" == true ] && [ "$revert_reverse" == true ]; then
-		echo "Select either --backup or --reverse"
+		echo >&2 "Select either --backup or --reverse"
 		exit 1
 	fi
 	if [ "$no_prompt" == true ] && [ "$revert_backup" == false ] && [ "$revert_reverse" == false ]; then
-		echo "Select either --backup or --reverse"
+		echo >&2 "Select either --backup or --reverse"
 		exit 1
 	fi
 
@@ -455,7 +455,7 @@ revert_hack() {
 	if [ "$is_hack_version" == true ]; then
 		echo "Compatible xochitl version: v${xo_version}"
 	else
-		echo "Incompatible xochitl version: v${xo_version}"
+		echo >&2 "Incompatible xochitl version: v${xo_version}"
 		exit 1
 	fi
 	echo -e "This can be done if the backup file generated via the hack is found, "
@@ -467,21 +467,21 @@ revert_hack() {
 			echo "Backup file found: ${bak_xo}"
 			if [ "$no_prompt" == true ]; then
 				echo "Reverting from backup file"
-				revert_from_backup && exit 0 || exit 1
+				revert_from_backup
 			fi
 
 			read -r -p "Would you like to revert from backup file? [y/N] " response
 			case "$response" in
 			[yY][eE][sS] | [yY])
 				echo "Reverting from backup file"
-				revert_from_backup && exit 0
+				revert_from_backup
 				;;
 			*)
 				echo "Cancel revert from backup file"
 				;;
 			esac
 		else
-			echo "Can't find backup file ${bak_xo}"
+			echo >&2 "Can't find backup file ${bak_xo}"
 			[ "$revert_backup" == true ] && exit 1
 		fi
 	fi
@@ -506,17 +506,17 @@ revert_from_backup() {
 	echo ""
 	if cp "$bak_xo" "$xo_file"; then
 		echo "Success: Revert from backup file"
-		return 0
+		exit 0
 	else
-		echo "Error: Revert from backup file"
-		return 1
+		echo >&2 "Error: Revert from backup file"
+		exit 1
 	fi
 }
 
 hack_backwards() {
 	echo ""
 	if ! hack_applied "$xo_file"; then
-		echo "File can not be reverted"
+		echo >&2 "File can not be reverted"
 		exit 1
 	else
 		echo "File can be reverted"
@@ -528,7 +528,7 @@ hack_backwards() {
 	if cp "$xo_file" "$BAK_APPLIED"; then
 		echo "Created ${BAK_APPLIED} file"
 	else
-		echo "Error: Create ${BAK_APPLIED} files"
+		echo >&2 "Error: Create ${BAK_APPLIED} files"
 		[[ -f $BAK_APPLIED ]] && rm "$BAK_APPLIED"
 		exit 1
 	fi
@@ -536,7 +536,7 @@ hack_backwards() {
 	if cp "$xo_file" "$tmp_xo"; then
 		echo "Created ${tmp_xo} files"
 	else
-		echo "Error: Create ${tmp_xo} files"
+		echo >&2 "Error: Create ${tmp_xo} files"
 		rm_temp
 		exit 1
 	fi
@@ -545,7 +545,7 @@ hack_backwards() {
 		sed -i 's/usbF/usb0/g' "$tmp_xo"; then
 		echo "Binary strings substituted"
 	else
-		echo "Error: Binary strings not substituted"
+		echo >&2 "Error: Binary strings not substituted"
 		rm_temp
 		exit 1
 	fi
@@ -553,7 +553,7 @@ hack_backwards() {
 	if hack_possible "$tmp_xo"; then
 		echo "Temp hack reversion success"
 	else
-		echo "Error: Temp hack reversion failed"
+		echo >&2 "Error: Temp hack reversion failed"
 		rm_temp
 		exit 1
 	fi
@@ -564,13 +564,13 @@ hack_backwards() {
 		echo "Success: webinterface-onboot hack reverted"
 		exit 0
 	else
-		echo "Error: mv ${tmp_xo} -> ${xo_file}"
+		echo >&2 "Error: mv ${tmp_xo} -> ${xo_file}"
 		rm_temp
 
 		if cp "$BAK_APPLIED" "$xo_file"; then
 			echo "Recovery Success: ${xo_file} restored from ${BAK_APPLIED}"
 		else
-			echo "Recovery Error: cp ${BAK_APPLIED} -> ${xo_file}"
+			echo >&2 "Recovery Error: cp ${BAK_APPLIED} -> ${xo_file}"
 			exit 1
 		fi
 	fi
@@ -621,7 +621,7 @@ apply_prstip() {
 apply_prstip_act() {
 	if is_action_moded "$prstip_content"; then
 		echo "Persist ip already applied"
-		exit
+		exit 0
 	fi
 
 	mkdir -p "$prstip_bak_dir"
