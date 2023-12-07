@@ -53,6 +53,9 @@ main() {
 		checkspace
 		revert_prstip
 		;;
+	'is-hack-version')
+		cli_hack_vers
+		;;
 	'is-hack-applied')
 		cli_hack_applied
 		;;
@@ -90,6 +93,7 @@ cli_info() {
 	echo '  revert-hack        Revert webinterface-onboot hack'
 	echo '  apply-prstip       Apply persist ip modification'
 	echo '  revert-prstip      Revert persist ip modification'
+	echo '  is-hack-version    Return true or false'
 	echo '  is-hack-applied    Return true or false'
 	echo '  is-prstip-applied  Return true or false'
 	echo '  local-exec         Run webinterface-onboot in current shell'
@@ -275,6 +279,17 @@ status() {
 		echo -e "${RED}No backups found in:${NC}"
 		echo -e "${opt_baks}"
 		echo -e "${local_baks}"
+	fi
+}
+
+cli_hack_vers () {
+	get_version
+	if [ "$is_hack_version" = true ]; then
+		echo "Compatible xochitl version: v${xo_version}"
+		exit 0
+	else
+		echo "Incompatible xochitl version: v${xo_version}"
+		exit 1
 	fi
 }
 
