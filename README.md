@@ -1,4 +1,4 @@
-![Static Badge](https://img.shields.io/badge/rMarkable-v3.8-green)
+![Static Badge](https://img.shields.io/badge/reMarkable-v3.8-green)
 ![rM1: supported](https://img.shields.io/badge/rM1-supported-green)
 ![rM2: supported](https://img.shields.io/badge/rM2-supported-green)
 

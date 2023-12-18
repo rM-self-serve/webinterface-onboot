@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 webinterface_onboot_sha256sum='8795ecb9bdd18b84deab0efa1a96c08ff53559d65567babb0088400da44daf0f'
-service_file_sha256sum='64cfdd5c8eaea1bc8df2e734a41c7ff038585cc2f4248c79e50531901b1ef651'
+service_file_sha256sum='d720711e475676ec3c5fb81f216ebbbf239005f3ea493996873b43d8edf3637a'
 
 release='v1.2.2'
 
