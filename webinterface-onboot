@@ -286,12 +286,13 @@ status() {
 	fi
 }
 
+# use the full path for strings to force the use of busybox
 hack_applied() {
-	strings "$1" | grep usb | xargs | grep -q 'usbF usb0'
+	/usr/bin/strings "$1" | grep usb | xargs | grep -q 'usbF usb0'
 }
 
 hack_possible() {
-	strings "$1" | grep usb | xargs | grep -q 'usb0 usb1'
+	/usr/bin/strings "$1" | grep usb | xargs | grep -q 'usb0 usb1'
 }
 
 cli_hack_vers() {

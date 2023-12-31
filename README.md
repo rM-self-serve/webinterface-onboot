@@ -18,11 +18,24 @@ This simple program will convince the ReMarkable Tablet to start the web interfa
 
 ### Type the following commands after ssh'ing into the ReMarkable Tablet
 
-## Install
+
+**It is recommended to install via the [toltec package manager](https://toltec-dev.org/).** Toltec will automate the binary and persist ip modification.
+
+### With toltec
+
+```
+$ opkg update
+$ opkg install webinterface-onboot
+$ opkg remove webinterface-onboot
+```
+
+### No toltec
+
+### Install
 
 `$ wget https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/master/install-webint-ob.sh && bash install-webint-ob.sh && source ~/.bashrc`
 
-## Remove
+### Remove
 
 `$ wget https://raw.githubusercontent.com/rM-self-serve/webinterface-onboot/master/remove-webint-ob.sh && bash remove-webint-ob.sh`
 
