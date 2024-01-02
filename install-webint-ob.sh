@@ -14,6 +14,11 @@ binfile="${localbin}/${pkgname}"
 aliasfile="${localbin}/webint-onboot"
 servicefile="/lib/systemd/system/${pkgname}.service"
 
+wget_path=/home/root/.local/share/rM-self-serve/wget
+wget_remote=http://toltec-dev.org/thirdparty/bin/wget-v1.21.1-1
+wget_checksum=c258140f059d16d24503c62c1fdf747ca843fe4ba8fcd464a6e6bda8c3bbb6b5
+
+
 remove_installfile() {
 	read -r -p "Would you like to remove installation script? [y/N] " response
 	case "$response" in
@@ -43,6 +48,25 @@ case "$response" in
 	exit
 	;;
 esac
+
+if [ -f "$wget_path" ] && ! sha256sum -c <(echo "$wget_checksum  $wget_path") > /dev/null 2>&1; then
+    rm "$wget_path"
+fi
+if ! [ -f "$wget_path" ]; then
+    echo "Fetching secure wget"
+    # Download and compare to hash
+    mkdir -p "$(dirname "$wget_path")"
+    if ! wget -q "$wget_remote" --output-document "$wget_path"; then
+        echo "Error: Could not fetch wget, make sure you have a stable Wi-Fi connection"
+        exit 1
+    fi
+fi
+if ! sha256sum -c <(echo "$wget_checksum  $wget_path") > /dev/null 2>&1; then
+    echo "Error: Invalid checksum for the local wget binary"
+    exit 1
+fi
+chmod 755 "$wget_path"
+
 
 mkdir -p $localbin
 
@@ -87,7 +111,7 @@ if [ -f $binfile ]; then
 	fi
 fi
 if [ "$need_bin" = true ]; then
-	wget "https://github.com/rM-self-serve/${pkgname}/releases/download/${release}/${pkgname}" \
+	"$wget_path" "https://github.com/rM-self-serve/${pkgname}/releases/download/${release}/${pkgname}" \
 		-O "$binfile"
 
 	if ! pkg_sha_check; then
@@ -108,7 +132,7 @@ if [ -f $servicefile ]; then
 	fi
 fi
 if [ "$need_service" = true ]; then
-	wget "https://github.com/rM-self-serve/${pkgname}/releases/download/${release}/${pkgname}.service" \
+	"$wget_path" "https://github.com/rM-self-serve/${pkgname}/releases/download/${release}/${pkgname}.service" \
 		-O "$servicefile"
 
 	if ! srvc_sha_check; then
