@@ -45,20 +45,20 @@ $ opkg remove webinterface-onboot
 
 The provided functionality to apply/revert the hack will first create a backup, then a temporary file in which the hack is applied. If the temporary file is successfully converted, it will replace the xochitl binary in /usr/bin/.
 
-> If applying other binary modifications such as [rM-hacks](https://github.com/mb1986/rm-hacks) or [ddvk's hacks](https://github.com/ddvk/remarkable-hacks), they will fail if webint-onboot has been applied. Thus, it is necessary to apply webint-onboot after applying the other modifications. If reverting other binary modifications after webint-onboot has been applied, it is necessary to revert webint-onboot before reverting these modifications.
+> If applying other binary modifications such as [rM-hacks](https://github.com/mb1986/rm-hacks) or [ddvk's hacks](https://github.com/ddvk/remarkable-hacks), they will fail if webinterface-onboot has been applied. Thus, it is necessary to apply webinterface-onboot after applying the other modifications. If reverting other binary modifications after webinterface-onboot has been applied, it is necessary to revert webinterface-onboot before reverting these modifications.
 
 
 ### Apply Hack
 
 This will only need to be done once, unless you upgrade:
 
-`$ webint-onboot apply-hack`
+`$ webinterface-onboot apply-hack`
 
 ### Revert Hack
 
 Restore from backup or reverse hack:
 
-`$ webint-onboot revert-hack` 
+`$ webinterface-onboot revert-hack` 
 
 
 ## Maintain Internal Web Interface Accessibility
@@ -69,11 +69,11 @@ Disconnecting the usb cable will remove the ip address from the usb0 network int
 
 ### Apply Persist Ip
 
-`$ webint-onboot apply-prstip` 
+`$ webinterface-onboot apply-prstip` 
 
 ### Revert Persist Ip
 
-`$ webint-onboot revert-prstip` 
+`$ webinterface-onboot revert-prstip` 
 
 
 ## Usage
@@ -90,7 +90,7 @@ Disconnecting the usb cable will remove the ip address from the usb0 network int
 
 
 ### Status
-`$ webint-onboot --status`
+`$ webinterface-onboot --status`
 
 ![demo](https://github.com/rM-self-serve/webinterface-onboot/assets/122753594/1decf76a-a03a-4ba9-b5ac-352d04d3d345)
 
