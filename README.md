@@ -1,4 +1,4 @@
-![Static Badge](https://img.shields.io/badge/reMarkable-v3.9.4-green)
+![Static Badge](https://img.shields.io/badge/reMarkable-v3.10.2-green)
 [![rm1](https://img.shields.io/badge/rM1-supported-green)](https://remarkable.com/store/remarkable)
 [![rm2](https://img.shields.io/badge/rM2-supported-green)](https://remarkable.com/store/remarkable-2)
 [![opkg](https://img.shields.io/badge/OPKG-webinterface--onboot-blue)](https://toltec-dev.org/)
@@ -6,7 +6,7 @@
 
 # WebInterface-OnBoot
 
-This simple program will convince the ReMarkable Tablet to start the web interface after booting without the usb cable being plugged in. Eliminates the need to switch on the web interface setting after connecting the usb cable. Also useful for clients that leverage the web interface for file operations, namely access over [wifi](https://github.com/rM-self-serve/webinterface-wifi).
+This program will convince the ReMarkable Tablet to start the web interface after booting without the usb cable being plugged in. Eliminates the need to switch on the web interface setting after connecting the usb cable. Also useful for clients that leverage the web interface for file operations, namely access over [wifi](https://github.com/rM-self-serve/webinterface-wifi).
 
 ![demo](https://github.com/rM-self-serve/webinterface-onboot/assets/122753594/89d49258-01b9-42ff-b611-1144ce02621e)
 
