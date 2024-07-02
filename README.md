@@ -95,7 +95,7 @@ Disconnecting the usb cable will remove the ip address from the usb0 network int
 ![demo](https://github.com/rM-self-serve/webinterface-onboot/assets/122753594/1decf76a-a03a-4ba9-b5ac-352d04d3d345)
 
 ### Tailscale
-To serve the webinterface over tailscale after webinterface-oboot is working, use: [tailscale-rm-webint](https://github.com/rM-self-serve/tailscale-rm-webint)
+To serve the webinterface over tailscale after webinterface-oboot is working, use 'webinterface-localhost' from Toltec. 
 
 ## How Does It Work?
 
