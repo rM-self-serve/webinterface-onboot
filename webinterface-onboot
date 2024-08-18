@@ -2,7 +2,7 @@
 # Copyright (c) 2023 rM-self-serve
 # SPDX-License-Identifier: MIT
 
-webinterface_onboot_version='v1.2.1'
+webinterface_onboot_version='v1.2.4'
 
 main() {
 	# collect options before or after command
@@ -145,11 +145,9 @@ run_vars() {
 
 run() {
 	run_vars
-	echo -e "Setting WebInterfaceEnabled=true in ${user_conf}"
 	sed -i 's/WebInterfaceEnabled=false/WebInterfaceEnabled=true/g' "$user_conf"
 	echo -e "${GREEN}Set WebInterfaceEnabled=true in ${user_conf}${NC}"
 
-	echo "Adding ${usb0iprange} ip address to usb0"
 	ip addr change $usb0iprange dev usb0
 	echo -e "${GREEN}Added ${usb0iprange} ip address to usb0${NC}"
 }

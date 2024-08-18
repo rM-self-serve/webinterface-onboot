@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Populate install file
+      run: |
+        tag=$(echo $GITHUB_REF | sed 's/refs\/tags\///')
+        sed -i "s/VERSION/$tag/g" install-webint-ob.sh
+        webinterface_onboot_sha256sum=$(sha256sum webinterface-onboot | cut -d ' ' -f 1)
+        service_file_sha256sum=$(sha256sum webinterface-onboot.service | cut -d ' ' -f 1)
+        sed -i "s/WEBINTERFACE_ONBOOT_SHA256SUM/$webinterface_onboot_sha256sum/g" install-webint-ob.sh
+        sed -i "s/SERVICE_FILE_SHA256SUM/$service_file_sha256sum/g" install-webint-ob.sh
+
+    - name: Get tag message
+      run: |
+        tag=$(echo $GITHUB_REF | sed 's/refs\/tags\///')
+        # manually fetch the tag, otherwise commit message is found
+        git fetch --depth=1 origin +refs/tags/"$tag":refs/tags/"$tag"
+        message=$(git tag -l "$tag" --format '%(contents)')
+        echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
+        echo "$message" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
+    - name: Upload release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          webinterface-onboot
+          webinterface-onboot.service
+          install-webint-ob.sh
+        body: ${{ env.RELEASE_NOTES }}
+
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
