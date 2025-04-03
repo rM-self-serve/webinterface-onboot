@@ -130,7 +130,20 @@ checkspace() {
 _checkspace() {
 	part=$1
 	needed=$2
-	_available=$(df "$part" | tail -n1 | awk '{print $4}')
+
+	# Check if the file system is encrypted
+	if df "$part" | grep -q '/dev/mapper/encrypted'; then
+		_available=$(df "$part" | tail -n1 | awk '{print $3}')
+	else
+		_available=$(df "$part" | tail -n1 | awk '{print $4}')
+	fi
+
+	# Check if the value is numeric
+	if ! [[ "$_available" =~ ^[0-9]+$ ]]; then
+		echo "Error: Could not determine available space on $part" >&2
+		return 1
+	fi
+
 	available=$(("$_available" / 1024))
 	if [ $available -lt "$needed" ]; then
 		echo >&2 "Less than ${needed}MB free, ${available}MB"
